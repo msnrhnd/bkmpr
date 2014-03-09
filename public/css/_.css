@@ -7664,43 +7664,87 @@ html {
 
 /* line 24, ../sass/_.scss */
 .container {
-  width: 1090px;
+  max-width: none !important;
+  width: 1080px;
   margin: 0 auto;
 }
 
-/* line 29, ../sass/_.scss */
+/* line 30, ../sass/_.scss */
 p {
   text-align: justify;
   margin-bottom: 1em;
 }
 
-/* line 34, ../sass/_.scss */
-h1 {
-  position: absolute;
-  top: 0;
-  left: 0;
-  font-size: 26px;
-  font-size: 1.625rem;
-}
-
-/* line 41, ../sass/_.scss */
+/* line 35, ../sass/_.scss */
 #main-panel {
   position: relative;
-  width: 1090px;
-  height: 790px;
+  width: 1080px;
+  height: 760px;
 }
 
-/* line 50, ../sass/_.scss */
-#control-panel {
-  position: fixed;
+/* line 43, ../sass/_.scss */
+input {
+  width: 160px;
+  position: absolute;
+  z-index: 1;
+  border: none;
+  border-bottom: 1px solid black;
+}
+/* line 49, ../sass/_.scss */
+input#n {
+  text-align: center;
   top: 0;
+  left: 460px;
+}
+/* line 54, ../sass/_.scss */
+input#e {
+  text-align: right;
+  top: 388px;
   right: 0;
+}
+/* line 59, ../sass/_.scss */
+input#s {
+  text-align: center;
+  bottom: 0;
+  left: 460px;
+}
+/* line 64, ../sass/_.scss */
+input#w {
+  text-align: left;
+  top: 388px;
+  left: 0;
+}
+
+/* line 73, ../sass/_.scss */
+#control-panel {
   font-size: 22px;
   font-size: 1.375rem;
-  text-align: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+/* line 78, ../sass/_.scss */
+#control-panel .search {
+  width: 180px;
+  position: absolute;
+}
+/* line 82, ../sass/_.scss */
+#control-panel #submit {
+  position: absolute;
+  left: 180px;
+}
+/* line 86, ../sass/_.scss */
+#control-panel #save {
+  position: absolute;
+  left: 217px;
+}
+/* line 90, ../sass/_.scss */
+#control-panel #reset {
+  position: absolute;
+  left: 255px;
 }
 
-/* line 60, ../sass/_.scss */
+/* line 96, ../sass/_.scss */
 footer {
   position: absolute;
   bottom: 0;

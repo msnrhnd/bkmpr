@@ -15,126 +15,152 @@ $(document).ready(function () {
     });
     var items = [];
     $('#submit').click(function () {
-        var search, isbnjan, keyword;
+        if ($('img').size() > 12) {
+            return false;
+        }
         search = $('.search').val();
-        if (search) {
-            if ($.isNumeric(search) && search.length == 13) {
-                isbnjan = search;
-            }
-            else {
-                keyword = search;
-            }
-        }
-        var par = {
-            'applicationId': '1072038232996204187',
-            'keyword': keyword,
-            'isbnjan': isbnjan
-        }
-        $.ajax({
-            type: 'GET',
-            url: 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522',
-            timeout: 12000,
-            dataType: 'json',
-            data: par,
-            beforeSend: function () {
-                $('button').attr('disabled', true);
-            },
-            success: function (data) {
-                var item = [];
-                var json = data['Items'][0]['Item'];
-                item['isbn'] = isbnjan;
-                item['title'] = json['title'];
-                item['url'] = json['mediumImageUrl'];
-                item['x'] = 0;
-                item['y'] = 0;
-                items.push(item);
-                var coverSet = paper.coverSet(item);
-                console.log(item);
-                $('button').attr('disabled', false);
-            },
-            error: function () {
-                alert('error');
-            }
-        });
+        paper.coverSet(search, 128, 128);
     });
-    $('#main-panel').append('<h1>Manga Map</h1>');
-    $('#main-panel').append('<footer>&copy; 2014 Masanori HONDA</footer>');
-    $('#main-panel').append(
-    $('<input/>').attr({
-        'type': 'text',
-    }).css({
-        'position': 'absolute',
-        'text-align': 'center',
-        'border': 'none',
-        'top': 0,
-        'left': WIDTH / 2
-    }).addClass('axis north'));
-    $('#main-panel').append(
-    $('<input/>').attr({
-        'type': 'text',
-    }).css({
-        'position': 'absolute',
-        'text-align': 'center',
-        'border': 'none',
-        'top': HEIGHT - 22,
-        'left': WIDTH / 2 - 88
-    }).addClass('south'));
-    $('#save').click(function(){
-        $('image').each(function(){
-            console.log($(this).attr('transform'));
-        });
-    });
-    function getParameters() {
-        var settingsObject = {},
-            hash, hashes = location.search.substring(1).split('&'),
-            i;
-        var max = hashes.length;
-        if (max > 1) {
-            for (i = 0; i < max; i++) {
-                hash = hashes[i].split('=');
-                settingsObject[hash[0]] = hash[1];
-            }
-        }
-        else {
-            settingsObject = undefined;
-        }
-        return settingsObject;
-    };
 
-    function setParameters(par) {
-        var enc = encodeURIComponent;
-        var str = '',
-            amp = '';
-        if (!par) return '';
-        for (var i in par) {
-            str = str + amp + i + "=" + enc(par[i]);
-            amp = '&'
+    $('#main-panel').prepend('<footer>MANGAMAP &copy; 2014 Masanori HONDA</footer>');
+    $('#save').click(function () {
+        var param = '';
+        var axis = '';
+        var jump = '/?';
+        $('input.axis').each(function () {
+            axis += escape($(this).val()) + '|';
+        });
+        axis = axis.slice(0, -1);
+        $('image').not('#0000000000000').each(function () {
+            var item = [];
+            var mat = eval($(this).attr('transform')) || eval('matrix(1,0,0,1,0,0)');
+            var ox = Number($(this).attr('x')) + mat[4] + $(this).attr('width') / 2;
+            var oy = Number($(this).attr('y')) + mat[5] + $(this).attr('height') / 2;
+            var coord = map(ox, oy);
+            item['isbn'] = $(this).attr('id');
+            item['x'] = coord[0];
+            item['y'] = coord[1];
+            param += itemStringfy(item);
+        });
+        if (param){
+            jump += '_=' + param + '&';
         }
-        return str;
+        if (axis != '|||'){
+            jump += 'l=' + axis;
+        }
+        history.pushState('', '', jump);
+    });
+    $('input.axis').change(function () {
+        $(this).css('border', 'none');
+        if (!$(this).val()) {
+            $(this).css('border-bottom', '1px solid black');
+        }
+    });
+
+    function getUrlVars() {
+        var vars = [],
+            hash;
+        var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+        for (var i = 0; i < hashes.length; i++) {
+            hash = hashes[i].split('=');
+            vars.push(hash[0]);
+            vars[hash[0]] = hash[1];
+        }
+        return vars;
     }
-    Raphael.fn.coverSet = function (i) {
+
+    Raphael.fn.coverSet = function (isbn, tx, ty) {
         var me = this;
         var cover = me.set();
-        var img = new Image();
-        img.src = i['url'];
-        img.onload = function () {
-            var img_w = img.width;
-            var img_h = img.height;
-            var coord = inv(i['x'], i['y'], img.width, img.height);
+        if ($.isNumeric(isbn) && isbn.length == 13) {
+            var par = {
+                'applicationId': '1072038232996204187',
+                'isbnjan': isbn
+            }
+            $.ajax({
+                type: 'GET',
+                url: 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522',
+                timeout: 12000,
+                dataType: 'json',
+                data: par,
+                beforeSend: function () {
+                    if ($('#' + isbn).size() > 0) {
+                        return false;
+                    }
+                    else {
+                        $('button').attr('disabled', true);
+                    }
+                },
+                success: function (data) {
+                    $('button').attr('disabled', false);
+                    var json = data['Items'][0]['Item'];
+                    var img = new Image();
+                    img.src = json['mediumImageUrl'];
+                    img.onload = function () {
+                        var w = img.width;
+                        var h = img.height;
+                        var coord = inv(tx, ty);
+                        cover.push(
+                        me.rect(coord[0] - w / 2 - 4, coord[1] - h / 2 - 4, w + 8, h + 8).attr({
+                            'stroke': 'black',
+                            'fill': 'white',
+                            'stroke-width': 1
+                        }), me.image(json['mediumImageUrl'], coord[0] - w / 2, coord[1] - h / 2), me.text(coord[0], coord[1] + h / 2 + 20, json['title']).attr({
+                            'font-size': 14
+                        }));
+                        cover[1].node.id = isbn;
+                        cover.attr({
+                            'cursor': 'pointer',
+                        }).draggable();
+                        setMouseHandlers(cover);
+                        return cover;
+                    }
+                },
+                error: function () {
+                    return false;
+                }
+            });
+        }
+        else {
+            var w = 80;
+            var h = 120;
+            var coord = inv(tx, ty);
             cover.push(
-            me.rect(coord[0], coord[1], img_w + 8, img_h + 8).attr({
+            me.rect(coord[0] - w / 2 - 4, coord[1] - h / 2 - 4, w + 8, h + 8).attr({
                 'stroke': 'black',
                 'fill': 'white',
-                'stroke-width': .3
-            }), me.image(img.src, coord[0] + 4, coord[1] + 4), me.text(coord[0] + img_w / 2, coord[1] + img_h + 20, i['title']).attr({
+                'stroke-width': 1
+            }), me.image('images/dummy.png', coord[0] - w / 2, coord[1] - h / 2, w, h), me.text(coord[0], coord[1] + h / 2 + 20, isbn).attr({
                 'font-size': 14
             }));
+            cover[1].node.id = '0000000000000';
             cover.attr({
-                'cursor': 'pointer'
+                'cursor': 'pointer',
             }).draggable();
             setMouseHandlers(cover);
+            return cover;
         }
-        return cover;
+    }
+    var get_vars = getUrlVars();
+    var get_item = get_vars['_'];
+    var get_axis = get_vars['l'];
+    if (get_item) {
+        var axis_list = get_axis.split('|');
+        console.log(axis_list);
+        $.each(axis_list, function (i, v) {
+            if(v){
+                console.log(i);
+                $('input').eq(i).val(unescape(v)).css('border', 'none');
+            }
+        });
+        if (get_item.length % 15 == 0) {
+            var num = get_item.length / 15;
+            for (var i = num; i > 0; i--) {
+                var digits = get_item.slice(15 * (i - 1), 15 * i);
+                var item = itemDecode(digits);
+                paper.coverSet(String(item['isbn']), item['x'], item['y']);
+            }
+        }
     }
     Raphael.st.draggable = function () {
         var me = this,
@@ -157,22 +183,22 @@ $(document).ready(function () {
 
     function setMouseHandlers(set) {
         function dblclick() {
-            set.remove()
+            set.remove();
         };
         set.dblclick(dblclick);
     }
 
     function map(ox, oy) {
         var tx, ty;
-        tx = (ox - WIDTH / 2) / (WIDTH / 2);
-        ty = -(oy - HEIGHT / 2) / (HEIGHT / 2);
+        tx = Math.round(255 * ox / WIDTH);
+        ty = Math.round(255 * oy / HEIGHT);
         return [tx, ty];
     }
 
-    function inv(tx, ty, w, h) {
+    function inv(tx, ty) {
         var ox, oy;
-        ox = (1 + tx) * WIDTH / 2 - w/2;
-        oy = (1 - ty) * HEIGHT / 2 - h/2;
+        ox = WIDTH * tx / 255;
+        oy = HEIGHT * ty / 255;
         return [ox, oy];
     }
     var originalRaphaelImageFn = Raphael.fn.image;
@@ -184,5 +210,26 @@ $(document).ready(function () {
             if (!h) h = img.height;
         }
         return originalRaphaelImageFn.call(this, url, x, y, w, h);
-    };
+    }
+
+    function itemDecode(digits) {
+        var isbn = parseInt(digits.slice(0, 11), 16);
+        var x = parseInt(digits.slice(11, 13), 16);
+        var y = parseInt(digits.slice(13, 15), 16);
+        return {
+            'isbn': isbn,
+            'x': x,
+            'y': y
+        };
+    }
+
+    function itemStringfy(item) {
+        var isbn16 = Number(item['isbn']).toString(16);
+        var x16 = ('0' + item['x'].toString(16)).slice(-2);
+        var y16 = ('0' + item['y'].toString(16)).slice(-2);
+        return isbn16 + x16 + y16; // 15digits
+    }
+    function matrix(a, b, c, d, e, f) {
+        return [a, b, c, d, e, f];
+    }
 });

@@ -3,8 +3,8 @@
 @import "compass/css3/font-face";
 @import "compass/reset";
 
-$main-width: 1090px;
-$main-height: 790px;
+$main-width: 1080px;
+$main-height: 760px;
 
 @mixin fontsize($size: 24, $base: 16) {
   font-size: $size + px;
@@ -22,6 +22,7 @@ html {
 }
 
 .container {
+  max-width: none !important;
   width: $main-width;
   margin: 0 auto;
 }
@@ -31,29 +32,64 @@ p {
   margin-bottom: 1em;
 }
 
-h1 {
-  position: absolute;
-  top: 0;
-  left: 0;
-  @include fontsize(26);
-}
-
 #main-panel {
   position: relative;
   width: $main-width;
   height: $main-height;
 }
 
-$btn-width: $main-width / 6;
-$btn-margin: $btn-width / 20;
+$input-width: 160px;
+
+input {
+  width: $input-width;
+  position: absolute;
+  z-index: 1;
+  border: none;
+  border-bottom: 1px solid black;
+  &#n {
+    text-align: center;
+    top: 0;
+    left: $main-width / 2 - $input-width / 2;
+  }
+  &#e {
+    text-align: right;
+    top: $main-height / 2 + 8;
+    right: 0;
+  }
+  &#s {
+    text-align: center;
+    bottom: 0;
+    left: $main-width / 2 - $input-width / 2;
+  }
+  &#w {
+    text-align: left;
+    top: $main-height / 2 + 8;
+    left: 0;
+  }
+
+}
+
 
 #control-panel {
+  @include fontsize(22);
   position: fixed;
   top: 0;
-  right: 0;
-  @include fontsize(22);
-  text-align: center;
-  .btn {
+  left: 0;
+  .search {
+    width: 180px;
+    position: absolute;
+  }
+  #submit {
+    position: absolute;
+    left: 180px;
+  }
+  #save {
+    position: absolute;
+    left: 217px;
+  }
+  #reset {
+    position: absolute;
+    left: 255px;
   }
 }
 
