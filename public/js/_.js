@@ -29,7 +29,7 @@ $(document).ready(function () {
         var axis = '';
         var jump = '/?';
         $('input.axis').each(function () {
-            axis += escape($(this).val()) + '%7C';
+            axis += escape($(this).val()) + '.';
         });
         axis = axis.slice(0, -3);
         $('image').not('#0000000000000').each(function () {
@@ -46,7 +46,7 @@ $(document).ready(function () {
         if (param){
             jump += '_=' + param + '&';
         }
-        if (axis != '%7C%7C%7C'){
+        if (axis != '...'){
             jump += 'l=' + axis;
         }
         history.pushState('', '', jump);
@@ -149,7 +149,7 @@ $(document).ready(function () {
     var get_item = get_vars['_'];
     var get_axis = get_vars['l'];
     if (get_item) {
-        var axis_list = get_axis.split('%7C');
+        var axis_list = get_axis.split('.');
         console.log(axis_list);
         $.each(axis_list, function (i, v) {
             if(v){
