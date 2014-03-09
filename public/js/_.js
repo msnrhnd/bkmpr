@@ -23,6 +23,7 @@ $(document).ready(function () {
     });
 
     $('#main-panel').prepend('<footer>MANGAMAP &copy; 2014 Masanori HONDA</footer>');
+    $('#reset').prop('disabled', true);
     $('#save').click(function () {
         var param = '';
         var axis = '';
