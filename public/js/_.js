@@ -31,7 +31,7 @@ $(document).ready(function () {
         $('input.axis').each(function () {
             axis += escape($(this).val()) + '%7C';
         });
-        axis = axis.slice(0, -1);
+        axis = axis.slice(0, -3);
         $('image').not('#0000000000000').each(function () {
             var item = [];
             var mat = eval($(this).attr('transform')) || eval('matrix(1,0,0,1,0,0)');
