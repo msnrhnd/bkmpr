@@ -29,7 +29,7 @@ $(document).ready(function () {
         var axis = '';
         var jump = '/?';
         $('input.axis').each(function () {
-            axis += escape($(this).val()) + '|';
+            axis += escape($(this).val()) + '%7C';
         });
         axis = axis.slice(0, -1);
         $('image').not('#0000000000000').each(function () {
@@ -46,7 +46,7 @@ $(document).ready(function () {
         if (param){
             jump += '_=' + param + '&';
         }
-        if (axis != '|||'){
+        if (axis != '%7C%7C%7C'){
             jump += 'l=' + axis;
         }
         history.pushState('', '', jump);
@@ -95,6 +95,9 @@ $(document).ready(function () {
                 success: function (data) {
                     $('button').attr('disabled', false);
                     var json = data['Items'][0]['Item'];
+                    if (!json) {
+                        return false;
+                    }
                     var img = new Image();
                     img.src = json['mediumImageUrl'];
                     img.onload = function () {
@@ -146,7 +149,7 @@ $(document).ready(function () {
     var get_item = get_vars['_'];
     var get_axis = get_vars['l'];
     if (get_item) {
-        var axis_list = get_axis.split('|');
+        var axis_list = get_axis.split('%7C');
         console.log(axis_list);
         $.each(axis_list, function (i, v) {
             if(v){
