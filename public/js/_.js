@@ -1,5 +1,6 @@
 $(document).ready(function () {
     var WIDTH, HEIGHT, paper, vert, horz, MG;
+
     function draw() {
         WIDTH = $(window).width();
         HEIGHT = $(window).height();
@@ -15,10 +16,22 @@ $(document).ready(function () {
             'arrow-start': 'block-wide-wide',
             'stroke-width': 2
         });
-        $('#n').css('left', WIDTH/2-80);
-        $('#s').css('left', WIDTH/2-80);
-        $('#e').css('top', HEIGHT/2);
-        $('#w').css('top', HEIGHT/2);
+        $('#n').css({
+            'top': 0,
+            'left': WIDTH / 2 - 80
+        });
+        $('#s').css({
+            'top': HEIGHT - 22,
+            'left': WIDTH / 2 - 80
+        });
+        $('#e').css({
+            'top': HEIGHT / 2,
+            'left': WIDTH - 160
+        });
+        $('#w').css({
+            'top': HEIGHT / 2,
+            'left': 0
+        });
     }
     draw();
     var items = [];
@@ -28,7 +41,7 @@ $(document).ready(function () {
         }
         search_list = $('.search').val().split(/\s*,\s*/);
         $.each(search_list, function (i, v) {
-            if(v){
+            if (v) {
                 paper.coverSet(v, 128, 128);
             }
         });
@@ -54,15 +67,15 @@ $(document).ready(function () {
             item['y'] = coord[1];
             param += itemStringfy(item);
         });
-        if (param){
+        if (param) {
             jump += '_=' + param;
         }
-        if (axis != '...'){
+        if (axis != '...') {
             jump += '&l=' + axis;
         }
         history.pushState('', '', jump);
     });
-    $('#reset').click(function() {
+    $('#reset').click(function () {
         history.pushState('', '', '/');
         paper.remove();
         draw();
@@ -112,7 +125,8 @@ $(document).ready(function () {
                     $('button').attr('disabled', false);
                     try {
                         var json = data['Items'][0]['Item'];
-                    } catch(e) {
+                    }
+                    catch (e) {
                         console.log('Not Found');
                     }
                     if (!json) {
@@ -172,7 +186,7 @@ $(document).ready(function () {
         if (get_axis) {
             var axis_list = get_axis.split('.');
             $.each(axis_list, function (i, v) {
-                if(v){
+                if (v) {
                     $('input.axis').eq(i).val(unescape(v)).css('border', 'none');
                 }
             });
@@ -253,6 +267,7 @@ $(document).ready(function () {
         var y16 = ('0' + item['y'].toString(16)).slice(-2);
         return isbn16 + x16 + y16; // 15digits
     }
+
     function matrix(a, b, c, d, e, f) {
         return [a, b, c, d, e, f];
     }
