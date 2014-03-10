@@ -1,29 +1,40 @@
 $(document).ready(function () {
-    var WIDTH = $('#main-panel').width(),
-        HEIGHT = $('#main-panel').height(),
-        paper = Raphael("main-panel", WIDTH, HEIGHT),
+    var WIDTH, HEIGHT, paper, vert, horz, MG;
+    function draw() {
+        WIDTH = $(window).width();
+        HEIGHT = $(window).height();
+        paper = Raphael('main-panel', WIDTH, HEIGHT);
         MG = 24;
-    var vert = paper.path('M' + WIDTH / 2 + ' ' + MG + 'L' + WIDTH / 2 + ' ' + (HEIGHT - MG)).attr({
-        'arrow-end': 'block-wide-wide',
-        'arrow-start': 'block-wide-wide',
-        'stroke-width': 2
-    });
-    var horz = paper.path('M' + MG + ' ' + HEIGHT / 2 + 'L' + (WIDTH - MG) + ' ' + HEIGHT / 2).attr({
-        'arrow-end': 'block-wide-wide',
-        'arrow-start': 'block-wide-wide',
-        'stroke-width': 2
-    });
+        vert = paper.path('M' + WIDTH / 2 + ' ' + MG + 'L' + WIDTH / 2 + ' ' + (HEIGHT - MG)).attr({
+            'arrow-end': 'block-wide-wide',
+            'arrow-start': 'block-wide-wide',
+            'stroke-width': 2
+        });
+        horz = paper.path('M' + MG + ' ' + HEIGHT / 2 + 'L' + (WIDTH - MG) + ' ' + HEIGHT / 2).attr({
+            'arrow-end': 'block-wide-wide',
+            'arrow-start': 'block-wide-wide',
+            'stroke-width': 2
+        });
+        $('#n').css('left', WIDTH/2-80);
+        $('#s').css('left', WIDTH/2-80);
+        $('#e').css('top', HEIGHT/2);
+        $('#w').css('top', HEIGHT/2);
+    }
+    draw();
     var items = [];
     $('#submit').click(function () {
         if ($('img').size() > 12) {
             return false;
         }
-        search = $('.search').val();
-        paper.coverSet(search, 128, 128);
+        search_list = $('.search').val().split(/\s*,\s*/);
+        $.each(search_list, function (i, v) {
+            if(v){
+                paper.coverSet(v, 128, 128);
+            }
+        });
     });
 
     $('#main-panel').prepend('<footer>MANGAMAP &copy; 2014 Masanori HONDA</footer>');
-    $('#reset').prop('disabled', true);
     $('#save').click(function () {
         var param = '';
         var axis = '';
@@ -44,12 +55,17 @@ $(document).ready(function () {
             param += itemStringfy(item);
         });
         if (param){
-            jump += '_=' + param + '&';
+            jump += '_=' + param;
         }
         if (axis != '...'){
-            jump += 'l=' + axis;
+            jump += '&l=' + axis;
         }
         history.pushState('', '', jump);
+    });
+    $('#reset').click(function() {
+        history.pushState('', '', '/');
+        paper.remove();
+        draw();
     });
     $('input.axis').change(function () {
         $(this).css('border', 'none');
@@ -94,7 +110,11 @@ $(document).ready(function () {
                 },
                 success: function (data) {
                     $('button').attr('disabled', false);
-                    var json = data['Items'][0]['Item'];
+                    try {
+                        var json = data['Items'][0]['Item'];
+                    } catch(e) {
+                        console.log('Not Found');
+                    }
                     if (!json) {
                         return false;
                     }
@@ -149,14 +169,14 @@ $(document).ready(function () {
     var get_item = get_vars['_'];
     var get_axis = get_vars['l'];
     if (get_item) {
-        var axis_list = get_axis.split('.');
-        console.log(axis_list);
-        $.each(axis_list, function (i, v) {
-            if(v){
-                console.log(i);
-                $('input').eq(i).val(unescape(v)).css('border', 'none');
-            }
-        });
+        if (get_axis) {
+            var axis_list = get_axis.split('.');
+            $.each(axis_list, function (i, v) {
+                if(v){
+                    $('input.axis').eq(i).val(unescape(v)).css('border', 'none');
+                }
+            });
+        }
         if (get_item.length % 15 == 0) {
             var num = get_item.length / 15;
             for (var i = num; i > 0; i--) {

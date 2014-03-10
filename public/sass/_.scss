@@ -21,21 +21,16 @@ html {
   line-height: 1.6;
 }
 
-.container {
-  max-width: none !important;
-  width: $main-width;
-  margin: 0 auto;
-}
+/* .container { */
+/*   width: 100% !important; */
+/*   height: 100% !important; */
+/*   max-width: none !important; */
+/*   margin: 0 auto; */
+/* } */
 
 p {
   text-align: justify;
   margin-bottom: 1em;
-}
-
-#main-panel {
-  position: relative;
-  width: $main-width;
-  height: $main-height;
 }
 
 $input-width: 160px;
@@ -50,26 +45,20 @@ input {
   &#n {
     text-align: center;
     top: 0;
-    left: $main-width / 2 - $input-width / 2;
-  }
-  &#e {
-    text-align: right;
-    top: $main-height / 2 + 8;
-    right: 0;
   }
   &#s {
     text-align: center;
     bottom: 0;
-    left: $main-width / 2 - $input-width / 2;
+  }
+  &#e {
+    text-align: right;
+    right: 0;
   }
   &#w {
     text-align: left;
-    top: $main-height / 2 + 8;
     left: 0;
   }
-
 }
-
 
 #control-panel {
   @include fontsize(22);
