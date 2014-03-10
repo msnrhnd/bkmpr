@@ -21,7 +21,7 @@ $(document).ready(function () {
             'left': WIDTH / 2 - 80
         });
         $('#s').css({
-            'top': HEIGHT - 22,
+            'top': HEIGHT - MG - 2,
             'left': WIDTH / 2 - 80
         });
         $('#e').css({
