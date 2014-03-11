@@ -51,7 +51,6 @@ $(document).ready(function () {
         $mes.fadeOut('slow', function(){$(this).remove();});
         return false;
     }
-    message('Not found', 'not-found');
     $('.search').bind('keypress', function(e) {
         if(e.keyCode==13){
             if ($('img').size() > 12) {
