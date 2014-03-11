@@ -56,6 +56,26 @@ input {
   }
 }
 
+message {
+  display: inline-block;
+  position: absolute;
+  width: 120px;
+  height: 40px;
+  line-height: 40px;
+  z-index: 1;
+  font-weight: bold;
+  text-align: center;
+  color: white;
+  @include fontsize(22);
+  @include border-radius(8px);
+  &.not-found {
+    background-color: red;
+  }
+  &.duplicated {
+    background-color: blue;
+  }
+}
+
 #control-panel {
   @include fontsize(22);
   position: fixed;

@@ -36,12 +36,12 @@ app.get('/', routes.index);
 app.get('/users', user.list);
 
 io.sockets.on('connection', function(socket) {
-    console.log("connection");
+    console.log('connection');
     socket.on('message', function(data) {
-        console.log("message");
+        console.log('message');
         io.sockets.emit('message', { value: data.value });
     });
     socket.on('disconnect', function(){
-        console.log("disconnect");
+        console.log('disconnect');
     });
 });

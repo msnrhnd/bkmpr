@@ -35,11 +35,42 @@ $(document).ready(function () {
     }
     draw();
     var items = [];
+
+    function queryFormat(query) {
+        var query_list = $('.search').val().split(/\s*,\s*/);
+        $('.search').val('');
+        return query_list;
+    }
+
+    function message(mes, type) {
+        var $mes = $('<message/>').addClass(type).css({
+            top: HEIGHT / 2 - 20,
+            left: WIDTH / 2 - 60
+        }).text(mes);
+        $('#main-panel').prepend($mes);
+        $mes.fadeOut('slow', function(){$(this).remove();});
+        return false;
+    }
+    message('Not found', 'not-found');
+    $('.search').bind('keypress', function(e) {
+        if(e.keyCode==13){
+            if ($('img').size() > 12) {
+                return false;
+            }
+            var search_list = queryFormat($(this).val());
+            $.each(search_list, function (i, v) {
+                if (v) {
+                    paper.coverSet(v, 128, 128);
+                }
+            });
+        }
+    });
     $('#submit').click(function () {
         if ($('img').size() > 12) {
+            message('Too much!', 'not-found');
             return false;
         }
-        search_list = $('.search').val().split(/\s*,\s*/);
+        var search_list = queryFormat($(this).val());
         $.each(search_list, function (i, v) {
             if (v) {
                 paper.coverSet(v, 128, 128);
@@ -51,9 +82,9 @@ $(document).ready(function () {
     $('#save').click(function () {
         var param = '';
         var axis = '';
-        var jump = '/?';
-        $('input.axis').each(function () {
-            axis += escape($(this).val()) + '.';
+        var jump;
+        $('.axis').each(function () {
+            axis += $(this).val() + '.';
         });
         axis = axis.slice(0, -1);
         $('image').not('#0000000000000').each(function () {
@@ -67,11 +98,11 @@ $(document).ready(function () {
             item['y'] = coord[1];
             param += itemStringfy(item);
         });
-        if (param) {
-            jump += '_=' + param;
-        }
-        if (axis != '...') {
-            jump += '&l=' + axis;
+        if (param || axis != '...') {
+            jump = '?' + $.param({
+                _: param,
+                l: axis
+            });
         }
         history.pushState('', '', jump);
     });
@@ -80,7 +111,7 @@ $(document).ready(function () {
         paper.remove();
         draw();
     });
-    $('input.axis').change(function () {
+    $('.axis').change(function () {
         $(this).css('border', 'none');
         if (!$(this).val()) {
             $(this).css('border-bottom', '1px solid black');
@@ -115,6 +146,7 @@ $(document).ready(function () {
                 data: par,
                 beforeSend: function () {
                     if ($('#' + isbn).size() > 0) {
+                        message('Duplicated', 'not-found');
                         return false;
                     }
                     else {
@@ -127,7 +159,7 @@ $(document).ready(function () {
                         var json = data['Items'][0]['Item'];
                     }
                     catch (e) {
-                        console.log('Not Found');
+                        message('Not found', 'not-found');
                     }
                     if (!json) {
                         return false;
@@ -155,6 +187,7 @@ $(document).ready(function () {
                     }
                 },
                 error: function () {
+                    message('Error!', 'not-found');
                     return false;
                 }
             });
@@ -187,7 +220,7 @@ $(document).ready(function () {
             var axis_list = get_axis.split('.');
             $.each(axis_list, function (i, v) {
                 if (v) {
-                    $('input.axis').eq(i).val(unescape(v)).css('border', 'none');
+                    $('.axis').eq(i).val(decodeURI(v)).css('border', 'none');
                 }
             });
         }

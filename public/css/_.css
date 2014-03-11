@@ -7701,6 +7701,34 @@ input#w {
 }
 
 /* line 59, ../sass/_.scss */
+message {
+  display: inline-block;
+  position: absolute;
+  width: 120px;
+  height: 40px;
+  line-height: 40px;
+  z-index: 1;
+  font-weight: bold;
+  text-align: center;
+  color: white;
+  font-size: 22px;
+  font-size: 1.375rem;
+  -webkit-border-radius: 8px;
+  -moz-border-radius: 8px;
+  -ms-border-radius: 8px;
+  -o-border-radius: 8px;
+  border-radius: 8px;
+}
+/* line 71, ../sass/_.scss */
+message.not-found {
+  background-color: red;
+}
+/* line 74, ../sass/_.scss */
+message.duplicated {
+  background-color: blue;
+}
+
+/* line 79, ../sass/_.scss */
 #control-panel {
   font-size: 22px;
   font-size: 1.375rem;
@@ -7708,28 +7736,28 @@ input#w {
   top: 0;
   left: 0;
 }
-/* line 64, ../sass/_.scss */
+/* line 84, ../sass/_.scss */
 #control-panel .search {
   width: 180px;
   position: absolute;
 }
-/* line 68, ../sass/_.scss */
+/* line 88, ../sass/_.scss */
 #control-panel #submit {
   position: absolute;
   left: 180px;
 }
-/* line 72, ../sass/_.scss */
+/* line 92, ../sass/_.scss */
 #control-panel #save {
   position: absolute;
   left: 217px;
 }
-/* line 76, ../sass/_.scss */
+/* line 96, ../sass/_.scss */
 #control-panel #reset {
   position: absolute;
   left: 255px;
 }
 
-/* line 82, ../sass/_.scss */
+/* line 102, ../sass/_.scss */
 footer {
   position: absolute;
   bottom: 0;
