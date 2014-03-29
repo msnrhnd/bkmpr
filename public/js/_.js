@@ -16,6 +16,7 @@ $(document).ready(function () {
             'arrow-start': 'block-wide-wide',
             'stroke-width': 2
         });
+        $('footer').css({position: 'absolute', top: HEIGHT, left: WIDTH, 'font-size': '11px'});
         $('#n').css({
             'top': 0,
             'left': WIDTH / 2 - 80
@@ -53,7 +54,7 @@ $(document).ready(function () {
     }
     $('.search').bind('keypress', function(e) {
         if(e.keyCode==13){
-            if ($('img').size() > 12) {
+            if ($('img').size() > 24) {
                 return false;
             }
             var search_list = queryFormat($(this).val());
@@ -77,7 +78,7 @@ $(document).ready(function () {
         });
     });
 
-    $('#main-panel').prepend('<footer>MANGAMAP &copy; 2014 Masanori HONDA</footer>');
+    $('#main-panel').prepend($('<footer>MANGAMAP &copy; 2014 Masanori HONDA</footer>'));
     $('#save').click(function () {
         var param = '';
         var axis = '';
@@ -108,6 +109,7 @@ $(document).ready(function () {
     $('#reset').click(function () {
         history.pushState('', '', '/');
         paper.remove();
+        $('input').val('');
         draw();
     });
     $('.axis').change(function () {

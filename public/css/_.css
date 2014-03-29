@@ -7756,12 +7756,3 @@ message.duplicated {
   position: absolute;
   left: 255px;
 }
-
-/* line 102, ../sass/_.scss */
-footer {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  font-size: 12px;
-  font-size: 0.75rem;
-}
