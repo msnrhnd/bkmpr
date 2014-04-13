@@ -245,7 +245,7 @@ $(document).ready(function () {
                             var digits = get_item.slice(15 * (local - 1), 15 * local);
                             var item = itemDecode(digits);
                             paper.coverSet(String(item['isbn']), item['x'], item['y']);
-                    }, 400 * local);
+                    }, 600 * local);
                     })(i);
                 }
             }
