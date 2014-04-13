@@ -61,7 +61,7 @@ $(document).ready(function () {
     }
     $('.search').bind('keypress', function (e) {
         if (e.keyCode == 13) {
-            if ($('img').size() > 24) {
+            if ($('img').size() > 48) {
                 return false;
             }
             var search_list = queryFormat($(this).val());
