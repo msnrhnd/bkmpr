@@ -7662,19 +7662,13 @@ html {
   line-height: 1.6;
 }
 
-/* .container { */
-/*   width: 100% !important; */
-/*   height: 100% !important; */
-/*   max-width: none !important; */
-/*   margin: 0 auto; */
-/* } */
-/* line 31, ../sass/_.scss */
+/* line 24, ../sass/_.scss */
 p {
   text-align: justify;
   margin-bottom: 1em;
 }
 
-/* line 38, ../sass/_.scss */
+/* line 31, ../sass/_.scss */
 input {
   width: 160px;
   position: absolute;
@@ -7683,24 +7677,24 @@ input {
   border-bottom: 1px solid black;
   background-color: transparent;
 }
-/* line 45, ../sass/_.scss */
+/* line 38, ../sass/_.scss */
 input#n {
   text-align: center;
 }
-/* line 48, ../sass/_.scss */
+/* line 41, ../sass/_.scss */
 input#s {
   text-align: center;
 }
-/* line 51, ../sass/_.scss */
+/* line 44, ../sass/_.scss */
 input#e {
   text-align: right;
 }
-/* line 54, ../sass/_.scss */
+/* line 47, ../sass/_.scss */
 input#w {
   text-align: left;
 }
 
-/* line 59, ../sass/_.scss */
+/* line 52, ../sass/_.scss */
 message {
   display: inline-block;
   position: absolute;
@@ -7719,13 +7713,22 @@ message {
   -o-border-radius: 8px;
   border-radius: 8px;
 }
-/* line 71, ../sass/_.scss */
+/* line 64, ../sass/_.scss */
 message.not-found {
   background-color: red;
 }
-/* line 74, ../sass/_.scss */
+/* line 67, ../sass/_.scss */
 message.duplicated {
   background-color: blue;
+}
+
+/* line 72, ../sass/_.scss */
+footer {
+  font-size: 14px;
+  font-size: 0.875rem;
+  position: absolute;
+  right: 0;
+  bottom: 0;
 }
 
 /* line 79, ../sass/_.scss */

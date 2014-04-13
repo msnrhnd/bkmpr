@@ -16,7 +16,12 @@ $(document).ready(function () {
             'arrow-start': 'block-wide-wide',
             'stroke-width': 2
         });
-        $('footer').css({position: 'absolute', top: HEIGHT, left: WIDTH, 'font-size': '11px'});
+        $('footer').css({
+            position: 'absolute',
+            top: HEIGHT,
+            left: WIDTH,
+            'font-size': '11px'
+        });
         $('#n').css({
             'top': 0,
             'left': WIDTH / 2 - 80
@@ -49,11 +54,13 @@ $(document).ready(function () {
             left: WIDTH / 2 - 60
         }).text(mes);
         $('#main-panel').prepend($mes);
-        $mes.fadeOut('slow', function(){$(this).remove();});
+        $mes.fadeOut('slow', function () {
+            $(this).remove();
+        });
         return false;
     }
-    $('.search').bind('keypress', function(e) {
-        if(e.keyCode==13){
+    $('.search').bind('keypress', function (e) {
+        if (e.keyCode == 13) {
             if ($('img').size() > 24) {
                 return false;
             }
@@ -215,8 +222,12 @@ $(document).ready(function () {
     }
     var get_vars = getUrlVars();
     var get_item = get_vars['_'];
+    var get_preset = get_vars['preset'];
     var get_axis = get_vars['l'];
-    if (get_item) {
+    if (get_vars) {
+        if (get_preset) {
+            positionPreset(get_preset);
+        }
         if (get_axis) {
             var axis_list = get_axis.split('.');
             $.each(axis_list, function (i, v) {
@@ -225,12 +236,18 @@ $(document).ready(function () {
                 }
             });
         }
-        if (get_item.length % 15 == 0) {
-            var num = get_item.length / 15;
-            for (var i = num; i > 0; i--) {
-                var digits = get_item.slice(15 * (i - 1), 15 * i);
-                var item = itemDecode(digits);
-                paper.coverSet(String(item['isbn']), item['x'], item['y']);
+        if (get_item) {
+            if (get_item.length % 15 == 0) {
+                var num = get_item.length / 15;
+                for (var i = 1; i < num+1; i++) {
+                    (function(local){ 
+                        setTimeout(function(){
+                            var digits = get_item.slice(15 * (local - 1), 15 * local);
+                            var item = itemDecode(digits);
+                            paper.coverSet(String(item['isbn']), item['x'], item['y']);
+                    }, 400 * local);
+                    })(i);
+                }
             }
         }
     }
@@ -304,5 +321,11 @@ $(document).ready(function () {
 
     function matrix(a, b, c, d, e, f) {
         return [a, b, c, d, e, f];
+    }
+
+    function positionPreset(id) {
+        if (id == '1') {
+            alert('group1');
+        }
     }
 });

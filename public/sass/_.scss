@@ -21,13 +21,6 @@ html {
   line-height: 1.6;
 }
 
-/* .container { */
-/*   width: 100% !important; */
-/*   height: 100% !important; */
-/*   max-width: none !important; */
-/*   margin: 0 auto; */
-/* } */
-
 p {
   text-align: justify;
   margin-bottom: 1em;
@@ -76,6 +69,13 @@ message {
   }
 }
 
+footer {
+  @include fontsize(14);
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
+
 #control-panel {
   @include fontsize(22);
   position: fixed;
@@ -98,3 +98,4 @@ message {
     left: 255px;
   }
 }
+

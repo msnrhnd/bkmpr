@@ -12,11 +12,11 @@ var express = require('express'),
     server = http.createServer(app),
     io = require('socket.io').listen(server);
 
-var port = Number(process.env.PORT || 5000);
+var port = Number(process.env.PORT || 8080);
 server.listen(port);
 
  app.configure(function() {
-     app.set('port', process.env.PORT || 8080);
+//     app.set('port', process.env.PORT || 8080);
      app.set('views', path.join(__dirname, 'views'));
      app.set('view engine', 'ejs');
      app.use(express.favicon());
