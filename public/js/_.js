@@ -43,9 +43,15 @@ $(document).ready(function () {
     var items = [];
 
     function queryFormat(query) {
-        var query_list = $('.search').val().split(/\s*,\s*/);
-        $('.search').val('');
-        return query_list;
+        var query_list = query.split(/\s*,\s*/);
+        var digits_list = [];
+        var temp = {'x': 128, 'y': 128};
+        $.each(query_list, function(i, val){
+            console.log(val);
+            temp['isbn'] = val;
+            digits_list.push(itemStringfy(temp));
+        });
+        return digits_list;
     }
 
     function message(mes, type) {
@@ -59,30 +65,26 @@ $(document).ready(function () {
         });
         return false;
     }
+
     $('.search').bind('keypress', function (e) {
         if (e.keyCode == 13) {
             if ($('img').size() > 48) {
+                message('Too much!', 'not-found');
                 return false;
             }
-            var search_list = queryFormat($(this).val());
-            $.each(search_list, function (i, v) {
-                if (v) {
-                    paper.coverSet(v, 128, 128);
-                }
-            });
+            var digits_list = queryFormat($('.search').val());
+            $('.search').val('');
+            orderedAjax(digits_list, 0);
         }
     });
     $('#submit').click(function () {
-        if ($('img').size() > 12) {
+        if ($('img').size() > 48) {
             message('Too much!', 'not-found');
             return false;
         }
-        var search_list = queryFormat($(this).val());
-        $.each(search_list, function (i, v) {
-            if (v) {
-                paper.coverSet(v, 128, 128);
-            }
-        });
+        var digits_list = queryFormat($('.search').val());
+        $('.search').val('');
+        orderedAjax(digits_list, 0);
     });
 
     $('#main-panel').prepend($('<footer>MANGAMAP &copy; 2014 Masanori HONDA</footer>'));
@@ -113,12 +115,14 @@ $(document).ready(function () {
         }
         history.pushState('', '', jump);
     });
+
     $('#reset').click(function () {
         history.pushState('', '', '/');
         paper.remove();
         $('input').val('');
         draw();
     });
+
     $('.axis').change(function () {
         $(this).css('border', 'none');
         if (!$(this).val()) {
@@ -138,13 +142,38 @@ $(document).ready(function () {
         return vars;
     }
 
-    Raphael.fn.coverSet = function (isbn, tx, ty) {
+    Raphael.fn.setCover = function(img_url, title, isbn, tx, ty) {
         var me = this;
         var cover = me.set();
-        if ($.isNumeric(isbn) && isbn.length == 13) {
+        var img = new Image();
+        img.src = img_url;
+        img.onload = function () {
+            var w = img.width;
+            var h = img.height;
+            var coord = inv(tx, ty);
+            cover.push(
+                me.rect(coord[0] - w / 2 - 4, coord[1] - h / 2 - 4, w + 8, h + 8).attr({
+                    'stroke': 'black',
+                    'fill': 'white',
+                    'stroke-width': 1
+                }), me.image(img_url, coord[0] - w / 2, coord[1] - h / 2), me.text(coord[0], coord[1] + h / 2 + 20, title).attr({
+                    'font-size': 14
+                }));
+            cover[1].node.id = isbn;
+            cover.attr({
+                'cursor': 'pointer',
+            }).draggable();
+            setMouseHandlers(cover);
+            return cover;
+        }
+    }
+
+    function orderedAjax(digits_list, i) {
+        if (digits_list.length > i) {
+            item = itemDecode(digits_list[i]);
             var par = {
                 'applicationId': '1072038232996204187',
-                'isbnjan': isbn
+                'isbnjan': item['isbn']
             }
             $.ajax({
                 type: 'GET',
@@ -153,7 +182,7 @@ $(document).ready(function () {
                 dataType: 'json',
                 data: par,
                 beforeSend: function () {
-                    if ($('#' + isbn).size() > 0) {
+                    if ($('#' + item['isbn']).size() > 0) {
                         message('Duplicated', 'not-found');
                         return false;
                     }
@@ -172,54 +201,26 @@ $(document).ready(function () {
                     if (!json) {
                         return false;
                     }
-                    var img = new Image();
-                    img.src = json['mediumImageUrl'];
-                    img.onload = function () {
-                        var w = img.width;
-                        var h = img.height;
-                        var coord = inv(tx, ty);
-                        cover.push(
-                        me.rect(coord[0] - w / 2 - 4, coord[1] - h / 2 - 4, w + 8, h + 8).attr({
-                            'stroke': 'black',
-                            'fill': 'white',
-                            'stroke-width': 1
-                        }), me.image(json['mediumImageUrl'], coord[0] - w / 2, coord[1] - h / 2), me.text(coord[0], coord[1] + h / 2 + 20, json['title']).attr({
-                            'font-size': 14
-                        }));
-                        cover[1].node.id = isbn;
-                        cover.attr({
-                            'cursor': 'pointer',
-                        }).draggable();
-                        setMouseHandlers(cover);
-                        return cover;
-                    }
+                    paper.setCover(json['mediumImageUrl'], json['title'], item['isbn'], item['x'], item['y']);
                 },
                 error: function () {
+                    $('button').attr('disabled', false);
                     message('Error!', 'not-found');
                     return false;
+                },
+                complete: function () {
+                    console.log(i);
+                    setTimeout(function(){
+                        orderedAjax(digits_list, i + 1)
+                    }, 200);
                 }
             });
-        }
-        else {
-            var w = 80;
-            var h = 120;
-            var coord = inv(tx, ty);
-            cover.push(
-            me.rect(coord[0] - w / 2 - 4, coord[1] - h / 2 - 4, w + 8, h + 8).attr({
-                'stroke': 'black',
-                'fill': 'white',
-                'stroke-width': 1
-            }), me.image('images/dummy.png', coord[0] - w / 2, coord[1] - h / 2, w, h), me.text(coord[0], coord[1] + h / 2 + 20, isbn).attr({
-                'font-size': 14
-            }));
-            cover[1].node.id = '0000000000000';
-            cover.attr({
-                'cursor': 'pointer',
-            }).draggable();
-            setMouseHandlers(cover);
-            return cover;
-        }
-    }
+        } else {
+            console.log('Finished.');
+            return false;
+        };
+    };
+
     var get_vars = getUrlVars();
     var get_item = get_vars['_'];
     var get_preset = get_vars['preset'];
@@ -239,15 +240,11 @@ $(document).ready(function () {
         if (get_item) {
             if (get_item.length % 15 == 0) {
                 var num = get_item.length / 15;
-                for (var i = 1; i < num+1; i++) {
-                    (function(local){ 
-                        setTimeout(function(){
-                            var digits = get_item.slice(15 * (local - 1), 15 * local);
-                            var item = itemDecode(digits);
-                            paper.coverSet(String(item['isbn']), item['x'], item['y']);
-                    }, 600 * local);
-                    })(i);
+                var digits_list = [];
+                for (var i = 0; i < num; i++) {
+                    digits_list.push(get_item.substr(i * 15, 15));
                 }
+                orderedAjax(digits_list, 0);
             }
         }
     }
