@@ -206,13 +206,12 @@ $(document).ready(function () {
                 error: function () {
                     $('button').attr('disabled', false);
                     message('Error!', 'not-found');
-                    return false;
                 },
                 complete: function () {
                     console.log(i);
                     setTimeout(function(){
                         orderedAjax(digits_list, i + 1)
-                    }, 200);
+                    }, 240);
                 }
             });
         } else {
