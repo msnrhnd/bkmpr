@@ -50,6 +50,9 @@ io.sockets.on('connection', function (socket) {
 
 function getCover(url, isbn) {
   var outPath = path.join(__dirname, '..', 'tmp', isbn + '.jpg');
+  console.log(outPath);
+//  var outPath = path.join(__dirname, '..', 'tmp', isbn + '.jpg');
+  path.join(process.cwd(), 'temp/');
   if (!path.existsSync(outPath)) {
     var outFile = fs.createWriteStream(outPath);
     var req = http.get(url, function (res) {
