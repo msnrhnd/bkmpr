@@ -1,12 +1,15 @@
 $(document).ready(function () {
   var socket = io.connect(location.origin);
-  var paper, vert, horz, MG;
+  var paper = Raphael('main-panel');
+  paper.setViewBox(0, 0, $(window).width(), $(window).height(), true);
+  paper.setSize('100%','100%');
+  var vert, horz, MG;
   var COORD = {x: 256, y: 256};
-  (function () {
-    var WIDTH = $(window).width();
-    var HEIGHT = $(window).height();
-    paper = Raphael('main-panel', WIDTH, HEIGHT);
-    MG = 24;
+  var activeCover = new Array();
+  (function draw(viewbox) {
+    var WIDTH = viewbox[2];
+    var HEIGHT = viewbox[3];
+    MG = Math.max(WIDTH / 48, HEIGHT / 48);
     vert = paper.path('M' + WIDTH / 2 + ' ' + MG + 'L' + WIDTH / 2 + ' ' + (HEIGHT - MG)).attr({
       'arrow-end': 'block-wide-wide',
       'arrow-start': 'block-wide-wide',
@@ -17,6 +20,10 @@ $(document).ready(function () {
       'arrow-start': 'block-wide-wide',
       'stroke-width': 2
     });
+  })(paper._viewBox);
+  (function drawText(viewbox) {
+    var WIDTH = viewbox[2];
+    var HEIGHT = viewbox[3];
     $('footer').css({
       position: 'absolute',
       top: HEIGHT,
@@ -25,45 +32,55 @@ $(document).ready(function () {
     });
     $('#n').css({
       'top': 0,
-      'left': WIDTH / 2 - 80
+      'left': '50%' // - 80
     });
     $('#s').css({
-      'top': HEIGHT - MG - 2,
-      'left': WIDTH / 2 - 80
+      'top': '100%', //HEIGHT - MG - 2,
+      'left': '50%' //WIDTH / 2 - 80
     });
     $('#e').css({
-      'top': HEIGHT / 2,
-      'left': WIDTH - 160
+      'top': '50%', //HEIGHT / 2,
+      'left': '100%', //WIDTH - 160
+      'text-align': 'right'
     });
     $('#w').css({
-      'top': HEIGHT / 2,
+      'top': '50%', //HEIGHT / 2,
       'left': 0
     });
-  })();
-  $('#main-panel').prepend($('<footer>MANGAMAP2 &copy; 2016 msnrhnd</footer>'));
-  var activeCover = new Array();
+    $('body').prepend($('<footer>MANGAMAP2 &copy; 2016 msnrhnd</footer>'));
+  });//(paper._viewBox);
+  $(window).resize(function (){
+  });
+  $('.axis').change(function () {
+    $(this).css('border', 'none');
+    if (!$(this).val()) {
+      $(this).css('border-bottom', '1px solid black');
+    }
+  });
+
   Raphael.fn.setCover = function (src, title, isbn, coord) {
     var me = this;
     var cover = me.set();
+    cover.id = isbn;
+    cover.coord = coord;
     var img = new Image();
     img.src = src;
     img.onload = function () {
-      var w = img.width;
-      var h = img.height;
-      var xy = inv(coord);
+      var w = me._viewBox[2] / 12;
+      var h = w * img.height / img.width;
+      var xy = inv(me._viewBox, coord);
       cover.push(
       me.rect(xy.x - w / 2 - 4, xy.y - h / 2 - 4, w + 8, h + 8).attr({
         'stroke': 'black',
         'fill': 'white',
         'stroke-width': 1
-      }), me.image(src, xy.x - w / 2, xy.y - h / 2), me.text(xy.x, xy.y + h / 2 + 20, title).attr({
+      }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + 20, title).attr({
         'font-size': 14
       }));
       cover.attr({
         'cursor': 'pointer'
       });
       setMouseHandlers(cover);
-      cover.id = isbn;
       activeCover.push(cover);
       return cover;
     }
@@ -139,12 +156,10 @@ $(document).ready(function () {
   $('#submit').click(function () {
     if ($('img').size() > 48) {
       message('Too much covers!', 'not-found');
-      return false;
     }
-    getCover($('.search').val());
-//    var digits_list = queryFormat($('.search').val());
+    var isbn = $('.search').val();
+    socket.emit('getBook', isbn);
     $('.search').val('');
-//    orderedAjax(digits_list, 0);
   });
 
   function queryFormat(query) {
@@ -162,10 +177,10 @@ $(document).ready(function () {
     return digits_list;
   }
 
-  function message(mes, type) {
+  function message(viewbox, mes, type) {
     var $mes = $('<message/>').addClass(type).css({
-      top: HEIGHT / 2 - 20,
-      left: WIDTH / 2 - 60
+      top: viewbox[2] / 2 - 20,
+      left: viewbox[3] / 2 - 60
     }).text(mes);
     $('#main-panel').prepend($mes);
     $mes.fadeOut('slow', function () {
@@ -191,11 +206,9 @@ $(document).ready(function () {
       'y': y
     };
   }
-  socket.on('image', function (data) {
-    if (data.image) {
-      var src = 'data:image/jpeg;base64,' + data.buffer;
-      paper.setCover(src, data.title, data.isbn, {x: 0, y: 0});
-    }
+  socket.on('sendBook', function (data) {
+    var src = 'data:image/jpeg;base64,' + data.buffer;
+    paper.setCover(src, data.bookInfo.title, data.bookInfo.isbn, {x: 0, y: 0});
   });
   socket.on('removeCover', function (data) {
     activeCover.forEach( function (cover) {
@@ -244,17 +257,17 @@ $(document).ready(function () {
     });
   }
 
-  function map(origin) {
+  function map(viewbox, origin) {
     var tx, ty;
-    tx = Math.round(COORD.x * (origin.x / $(window).width() - 1 / 2));
-    ty = Math.round(-COORD.y * (origin.y / $(window).height() - 1 / 2));
+    tx = Math.round(COORD.x * (origin.x / viewbox[2] - 1 / 2));
+    ty = Math.round(-COORD.y * (origin.y / viewbox[3] - 1 / 2));
     return {x: tx, y: ty};
   }
 
-  function inv(coord) {
+  function inv(viewbox, coord) {
     var ox, oy;
-    ox = $(window).width() / COORD.x * (coord.x + COORD.x / 2);
-    oy = - $(window).height() / COORD.y * (coord.y - COORD.y / 2);
+    ox = viewbox[2] / COORD.x * (coord.x + COORD.x / 2);
+    oy = - viewbox[3] / COORD.y * (coord.y - COORD.y / 2);
     return {x: ox, y: oy};
   }
   

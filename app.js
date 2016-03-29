@@ -2,8 +2,10 @@ var express = require('express'),
   routes = require('./routes'),
   user = require('./routes/user'),
   http = require('http'),
+  https = require('https'),
   path = require('path'),
   fs = require('fs'),
+  querystring = require('querystring'),
   app = express(),
   server = http.createServer(app),
   io = require('socket.io').listen(server);
@@ -28,15 +30,17 @@ app.configure('development', function () {
 });
 
 app.get('/', routes.index);
-app.get('/users', user.list);
 
 io.sockets.on('connection', function (socket) {
   console.log('connected');
-  socket.on('getCover', function (data) {
-    var coverURL = getCover(data.mediumImageUrl, data.isbn);
-    fs.readFile(coverURL, function (err, buf) {
-      socket.emit('image', { image: true, buffer: buf.toString('base64'), title: data.title, isbn: data.isbn });
-      socket.broadcast.emit('image', { image: true, buffer: buf.toString('base64'), title: data.title, isbn: data.isbn });
+  socket.on('getBook', function (isbn) {
+    getBook(isbn, function (bookInfo) {
+      fs.readFile(bookInfo.coverPath, function(e, buffer){
+        var sendBook = {buffer: buffer.toString('base64'), bookInfo: bookInfo};
+        socket.emit('sendBook', sendBook);
+        socket.broadcast.emit('sendBook', sendBook);
+//        socket.send(data, { 'Content-Type': 'image/jpeg' }, 200);
+      });
     });
   });
   socket.on('removeCover', function (data) {
@@ -45,31 +49,48 @@ io.sockets.on('connection', function (socket) {
   socket.on('moveCover', function (data) {
     socket.broadcast.emit('moveCover', data);
   });
-
 });
 
-function getCover(url, isbn) {
-  var outPath = path.join(__dirname, 'tmp', isbn + '.jpg');
-//  var outPath = path.join(__dirname, '..', 'tmp', isbn + '.jpg');
-  if (!fs.existsSync(outPath)) {
-    var outFile = fs.createWriteStream(outPath);
-    var req = http.get(url, function (res) {
-      res.pipe(outFile);
-      res.on('end', function () {
-        outFile.close();
-      });
-    });
-    req.on('error', function (err) {
-      console.log('Error: ', err);
-      return;
-    });
-    var res = http.get(url, function (res) {
-      res.pipe(outFile);
-      res.on('end', function () {
-        outFile.close();
-      });
-    });
+function getBook(isbn, callback) {
+  var bookInfo;
+  var coverPath = path.join('tmp', isbn + '.jpg');
+  var query = {
+    applicationId: '1072038232996204187',
+    isbnjan: isbn
   }
-  return outPath;
+  var url = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?' + querystring.stringify(query);
+  https.get(url, function (res) {
+    var body = '';
+    res.on('data', function (chunk) {
+      body += chunk;
+    });
+    res.on('end', function () {
+      bookInfo = JSON.parse(body)['Items'][0]['Item'];
+      if (!fs.existsSync(coverPath)) {
+        var outFile = fs.createWriteStream(coverPath);
+        http.get(bookInfo['mediumImageUrl'], function (res) {
+          var imagedata = ''
+          res.setEncoding('binary');
+          res.on('data', function (chunk) {
+            imagedata += chunk;
+          });
+          res.on('end', function () {
+            fs.writeFile(coverPath, imagedata, 'binary', function (e) {
+              if (e) throw e;
+              console.log('File saved.');
+              bookInfo.coverPath = coverPath;
+              callback(bookInfo);
+            });
+          })
+        }).on('error', function (e) {
+          console.log(e.message);
+        });
+      } else {
+        bookInfo.coverPath = coverPath;
+        callback(bookInfo);
+      }
+    });
+  }).on('error', function (e) {
+    console.log(e.message);
+  });
 }
-
