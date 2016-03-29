@@ -249,7 +249,7 @@ $(document).ready(function () {
       var dy = y - _y;
       _x = x;
       _y = y;
-      socket.emit('moveCover', {dx: dx/$(window).width(), dy: dy/$(window).height(), id: set.id});
+      socket.emit('moveCover', {dx: dx/paper._viewBox[2], dy: dy/paper._viewBox[3], id: set.id});
     });
     set.dblclick( function () {
       set.remove();
