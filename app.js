@@ -6,6 +6,7 @@ var express = require('express'),
     path = require('path'),
     fs = require('fs'),
     querystring = require('querystring'),
+    async = require('async'),
     apac = require('apac'),
     app = express(),
     server = http.createServer(app),
@@ -40,26 +41,17 @@ var opHelper = new OperationHelper({
   awsSecret: '8oFXh86ZSn/sncBFLQJ0szBA4Grqw+DQzqk2bE2U',
   assocId: 'msnrhnd04-22'
 });
-
-opHelper.execute('ItemLookup', {
-  'ItemId': 'B00YV3ZR3C',
-  'MechantId': 'All',
-  'Condition': 'All',
-  'ResponseGroup': 'Medium'
-}, function(e, results) {
-  if (e) throw e;
-  console.log(results.ItemLookupResponse.Items[0].Item[0].ItemAttributes[0].Title[0]);
-  console.log(results.ItemLookupResponse.Items[0].Item[0].MediumImage[0].URL[0]);
-});
+var itemInfoPath = 'tmp/itemInfo.json';
+var itemJSON = {};
 
 io.sockets.on('connection', function (socket) {
   console.log('connected');
-  socket.on('getBook', function (isbn) {
-    getBook(isbn, function (bookInfo) {
-      fs.readFile(bookInfo.coverPath, function(e, buffer){
-        var sendBook = {buffer: buffer.toString('base64'), bookInfo: bookInfo};
-        socket.emit('sendBook', sendBook);
-        socket.broadcast.emit('sendBook', sendBook);
+  socket.on('getItem', function (asin) {
+    getItem(asin, function (data) {
+      fs.readFile(data.imagePath, function(e, buffer){
+        var sendItem = {buffer: buffer.toString('base64'), itemInfo: data};
+        socket.emit('sendItem', sendItem);
+        socket.broadcast.emit('sendItem', sendItem);
       });
     });
   });
@@ -71,46 +63,62 @@ io.sockets.on('connection', function (socket) {
   });
 });
 
-function getBook(isbn, callback) {
-  var bookInfo;
-  var coverPath = path.join('tmp', isbn + '.jpg');
-  var query = {
-    applicationId: '1072038232996204187',
-    isbnjan: isbn
-  }
-  var url = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?' + querystring.stringify(query);
-  https.get(url, function (res) {
-    var body = '';
-    res.on('data', function (chunk) {
-      body += chunk;
-    });
-    res.on('end', function () {
-      bookInfo = JSON.parse(body)['Items'][0]['Item'];
-      if (!fs.existsSync(coverPath)) {
-        var outFile = fs.createWriteStream(coverPath);
-        http.get(bookInfo['mediumImageUrl'], function (res) {
+function getItem(asin, callback) {
+  async.waterfall([
+    function (callback) {
+      var title = imageURL = '';
+      if (itemJSON.hasOwnProperty(asin)) {
+        title = itemJSON[asin].title;
+        imageURL = itemJSON[asin].imageURL;
+        callback(null, imageURL, title);
+      } else {
+        opHelper.execute('ItemLookup', {
+          'ItemId': asin,
+          'MechantId': 'All',
+          'Condition': 'All',
+          'ResponseGroup': 'Medium'
+        }, function (err, res) {
+          if (err) {
+            console.log(err.message);
+          } else {
+            title = res.ItemLookupResponse.Items[0].Item[0].ItemAttributes[0].Title[0];
+            imageURL = res.ItemLookupResponse.Items[0].Item[0].MediumImage[0].URL[0];
+            itemJSON[asin] = {
+              title: title,
+              imageURL: imageURL
+            };
+            fs.writeFileSync(itemInfoPath, JSON.stringify(itemJSON));
+            callback(null, imageURL, title);
+          }
+        });
+      }
+    }, function (imageURL, title, callback) {
+      var imagePath = path.join('tmp', asin + '.jpg');
+      if (!fs.existsSync(imagePath)) {
+        var outFile = fs.createWriteStream(imagePath);
+        http.get(imageURL, function (res) {
           var imagedata = ''
           res.setEncoding('binary');
           res.on('data', function (chunk) {
             imagedata += chunk;
           });
           res.on('end', function () {
-            fs.writeFile(coverPath, imagedata, 'binary', function (e) {
-              if (e) throw e;
+            fs.writeFile(imagePath, imagedata, 'binary', function (err) {
+              if (err) console.log(err);
               console.log('File saved.');
-              bookInfo.coverPath = coverPath;
-              callback(bookInfo);
+              callback(null, imagePath, title);
             });
           })
-        }).on('error', function (e) {
-          console.log(e.message);
+        }).on('error', function (err) {
+          console.log(e.rrmessage);
         });
       } else {
-        bookInfo.coverPath = coverPath;
-        callback(bookInfo);
-      }
-    });
-  }).on('error', function (e) {
-    console.log(e.message);
+        callback(null, imagePath, title);
+      };
+    }
+  ], function (err, imagePath, title) {
+    if (err) throw err;
+    console.log(imagePath, title);
+    callback({imagePath: imagePath, title: title});
   });
 }

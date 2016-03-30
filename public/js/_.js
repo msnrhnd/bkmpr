@@ -58,10 +58,10 @@ $(document).ready(function () {
     }
   });
 
-  Raphael.fn.setCover = function (src, title, isbn, coord) {
+  Raphael.fn.setCover = function (src, title, asin, coord) {
     var me = this;
     var cover = me.set();
-    cover.id = isbn;
+    cover.id = asin;
     cover.coord = coord;
     var img = new Image();
     img.src = src;
@@ -86,35 +86,6 @@ $(document).ready(function () {
     }
   }
   
-  function getCover(isbn) {
-    $.ajax({
-      type: 'GET',
-      url: 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522',
-      timeout: 12000,
-      dataType: 'json',
-      data: {
-        'applicationId': '1072038232996204187',
-        'isbnjan': isbn
-      },
-      success: function (data) {
-        try {
-          var json = data['Items'][0]['Item'];
-          socket.emit('getCover', json);
-        }
-        catch (e) {
-          message('Not found', 'not-found');
-        }
-        if (!json) {
-          return false;
-        }
-      },
-      error: function () {
-        message('Error!', 'not-found');
-      },
-      coplete: function () {
-      }
-    });
-  }
   var get_vars = getUrlVars();
   var get_item = get_vars['_'];
   var get_preset = get_vars['preset'];
@@ -158,8 +129,8 @@ $(document).ready(function () {
     if ($('img').size() > 48) {
       message('Too much covers!', 'not-found');
     }
-    var isbn = $('.search').val();
-    socket.emit('getBook', isbn);
+    var asin = $('.search').val();
+    socket.emit('getItem', asin);
     $('.search').val('');
   });
 
@@ -172,7 +143,7 @@ $(document).ready(function () {
     };
     $.each(query_list, function (i, val) {
       console.log(val);
-      temp['isbn'] = val;
+      temp['asin'] = val;
       digits_list.push(itemStringfy(temp));
     });
     return digits_list;
@@ -191,25 +162,25 @@ $(document).ready(function () {
   }
 
   function itemStringfy(item) {
-    var isbn16 = Number(item['isbn']).toString(16);
+    var asin16 = Number(item['asin']).toString(16);
     var x16 = ('0' + item['x'].toString(16)).slice(-2);
     var y16 = ('0' + item['y'].toString(16)).slice(-2);
-    return isbn16 + x16 + y16; // 15digits
+    return asin16 + x16 + y16; // 15digits
   }
 
   function itemDecode(digits) {
-    var isbn = parseInt(digits.slice(0, 11), 16);
+    var asin = parseInt(digits.slice(0, 11), 16);
     var x = parseInt(digits.slice(11, 13), 16);
     var y = parseInt(digits.slice(13, 15), 16);
     return {
-      'isbn': isbn,
+      'asin': asin,
       'x': x,
       'y': y
     };
   }
-  socket.on('sendBook', function (data) {
+  socket.on('sendItem', function (data) {
     var src = 'data:image/jpeg;base64,' + data.buffer;
-    paper.setCover(src, data.bookInfo.title, data.bookInfo.isbn, {x: 0, y: 0});
+    paper.setCover(src, data.itemInfo.title, data.itemInfo.asin, {x: 0, y: 0});
   });
   socket.on('removeCover', function (data) {
     activeCover.forEach( function (cover) {
