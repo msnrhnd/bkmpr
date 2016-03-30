@@ -66,8 +66,14 @@ $(document).ready(function () {
     var img = new Image();
     img.src = src;
     img.onload = function () {
-      var w = me._viewBox[2] / 12;
-      var h = w * img.height / img.width;
+      var w, h;
+      if (me._viewBox[2] < me._viewBox[3]) {
+        w = me._viewBox[2] / 8;
+        h = w * img.height / img.width;
+      } else {
+        h = me._viewBox[3] / 8;
+        w = h * img.width / img.height;
+      }
       var xy = inv(coord);
       cover.push(
       me.rect(xy.x - w / 2 - 4, xy.y - h / 2 - 4, w + 8, h + 8).attr({
@@ -190,7 +196,10 @@ $(document).ready(function () {
   socket.on('moveCover', function (data) {
     activeCover.forEach( function (cover) {
       if (cover.id == data.id) {
-        cover.translate(data.dx, data.dy);
+        var dx = data.x - cover.coord.x;
+        var dy = data.y - cover.coord.y;
+        console.log(dx, dy);
+        cover.translate(dx, dy);
       }
     });
   });
@@ -212,18 +221,19 @@ $(document).ready(function () {
       };
     this.drag(moveFnc, startFnc, endFnc);
   };
-
   function setMouseHandlers(set) {
     set.draggable();
     set.drag( function(x, y) {
-      console.log(map({x: x, y: y}));
-      var new_coord = {
-        x: set.coord.x + x/paper._viewBox[2],//*COORD.x,
-        y: set.coord.y - y/paper._viewBox[3]//*COORD.y
-      }
+      new_coord = map({
+        x: inv(set.coord).x + x,
+        y: inv(set.coord).y + y
+      });
+      console.log(set.coord);
+      socket.emit('moveCover', {x: new_coord.x, y: new_coord.y, id: set.id});
+    }, function(){
+      var new_coord = set.coord;
+    }, function(){
       set.coord = new_coord;
-//      console.log(set.coord)
-//      socket.emit('moveCover', {dx: new_coord.x, dy: new_coord.y, id: set.id});
     });
     set.dblclick( function () {
       set.remove();
