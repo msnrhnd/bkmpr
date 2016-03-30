@@ -47,13 +47,17 @@ var itemJSON = {};
 io.sockets.on('connection', function (socket) {
   console.log('connected');
   socket.on('getItem', function (asin) {
-    getItem(asin, function (data) {
-      fs.readFile(data.imagePath, function(e, buffer){
-        var sendItem = {buffer: buffer.toString('base64'), itemInfo: data};
-        socket.emit('sendItem', sendItem);
-        socket.broadcast.emit('sendItem', sendItem);
+    try {
+      getItem(asin, function (data) {
+        fs.readFile(data.imagePath, function(e, buffer){
+          var sendItem = {buffer: buffer.toString('base64'), itemInfo: data};
+          socket.emit('sendItem', sendItem);
+          socket.broadcast.emit('sendItem', sendItem);
+        });
       });
-    });
+    } catch (err) {
+      console.log(err.message);
+    }
   });
   socket.on('removeCover', function (data) {
     socket.broadcast.emit('removeCover', data);
@@ -64,6 +68,13 @@ io.sockets.on('connection', function (socket) {
 });
 
 function getItem(asin, callback) {
+  function trimTitle(str){
+    var trimmed = str;
+    if (str.length > 16) {
+      trimmed = str.slice(0, 16) + '…';
+    }
+    return trimmed;
+  }
   async.waterfall([
     function (callback) {
       var title = imageURL = '';
@@ -78,10 +89,9 @@ function getItem(asin, callback) {
           'Condition': 'All',
           'ResponseGroup': 'Medium'
         }, function (err, res) {
-          if (err) {
-            console.log(err.message);
-          } else {
-            title = res.ItemLookupResponse.Items[0].Item[0].ItemAttributes[0].Title[0];
+          if (err) throw err;
+          try {
+            title = trimTitle(res.ItemLookupResponse.Items[0].Item[0].ItemAttributes[0].Title[0]);
             imageURL = res.ItemLookupResponse.Items[0].Item[0].MediumImage[0].URL[0];
             itemJSON[asin] = {
               title: title,
@@ -89,7 +99,7 @@ function getItem(asin, callback) {
             };
             fs.writeFileSync(itemInfoPath, JSON.stringify(itemJSON));
             callback(null, imageURL, title);
-          }
+          } catch (err) {console.log(err.message);}
         });
       }
     }, function (imageURL, title, callback) {
@@ -104,13 +114,13 @@ function getItem(asin, callback) {
           });
           res.on('end', function () {
             fs.writeFile(imagePath, imagedata, 'binary', function (err) {
-              if (err) console.log(err);
+              if (err) throw err;
               console.log('File saved.');
               callback(null, imagePath, title);
             });
           })
         }).on('error', function (err) {
-          console.log(e.rrmessage);
+          console.log(err.message);
         });
       } else {
         callback(null, imagePath, title);
@@ -122,3 +132,4 @@ function getItem(asin, callback) {
     callback({imagePath: imagePath, title: title});
   });
 }
+//getItem('0');
