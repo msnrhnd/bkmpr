@@ -1,14 +1,16 @@
 var express = require('express'),
-  routes = require('./routes'),
-  user = require('./routes/user'),
-  http = require('http'),
-  https = require('https'),
-  path = require('path'),
-  fs = require('fs'),
-  querystring = require('querystring'),
-  app = express(),
-  server = http.createServer(app),
-  io = require('socket.io').listen(server);
+    routes = require('./routes'),
+    user = require('./routes/user'),
+    http = require('http'),
+    https = require('https'),
+    path = require('path'),
+    fs = require('fs'),
+    querystring = require('querystring'),
+    apac = require('apac'),
+    app = express(),
+    server = http.createServer(app),
+    util = require('util'),
+    io = require('socket.io').listen(server);
 
 var port = Number(process.env.PORT || 8080);
 server.listen(port);
@@ -31,6 +33,25 @@ app.configure('development', function () {
 
 app.get('/', routes.index);
 
+var OperationHelper = apac.OperationHelper;
+var opHelper = new OperationHelper({
+  endPoint: 'ecs.amazonaws.jp',
+  awsId: 'AKIAJAXY6SYZOMEV2XTQ',
+  awsSecret: '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',
+  assocId: 'msnrhnd04-22'
+});
+
+opHelper.execute('ItemLookup', {
+  'ItemId': 'B00YV3ZR3C',
+  'MechantId': 'All',
+  'Condition': 'All',
+  'ResponseGroup': 'Medium'
+}, function(e, results) {
+  if (e) throw e;
+  console.log(results.ItemLookupResponse.Items[0].Item[0].ItemAttributes[0].Title[0]);
+  console.log(results.ItemLookupResponse.Items[0].Item[0].MediumImage[0].URL[0]);
+});
+
 io.sockets.on('connection', function (socket) {
   console.log('connected');
   socket.on('getBook', function (isbn) {
@@ -39,7 +60,6 @@ io.sockets.on('connection', function (socket) {
         var sendBook = {buffer: buffer.toString('base64'), bookInfo: bookInfo};
         socket.emit('sendBook', sendBook);
         socket.broadcast.emit('sendBook', sendBook);
-//        socket.send(data, { 'Content-Type': 'image/jpeg' }, 200);
       });
     });
   });

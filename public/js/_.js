@@ -68,7 +68,7 @@ $(document).ready(function () {
     img.onload = function () {
       var w = me._viewBox[2] / 12;
       var h = w * img.height / img.width;
-      var xy = inv(me._viewBox, coord);
+      var xy = inv(coord);
       cover.push(
       me.rect(xy.x - w / 2 - 4, xy.y - h / 2 - 4, w + 8, h + 8).attr({
         'stroke': 'black',
@@ -85,6 +85,7 @@ $(document).ready(function () {
       return cover;
     }
   }
+  
   function getCover(isbn) {
     $.ajax({
       type: 'GET',
@@ -218,7 +219,7 @@ $(document).ready(function () {
   socket.on('moveCover', function (data) {
     activeCover.forEach( function (cover) {
       if (cover.id == data.id) {
-        cover.translate(data.dx*$(window).width(), data.dy*$(window).height());
+        cover.translate(data.dx, data.dy);
       }
     });
   });
@@ -243,31 +244,33 @@ $(document).ready(function () {
 
   function setMouseHandlers(set) {
     set.draggable();
-    var _x = _y = 0;
     set.drag( function(x, y) {
-      var dx = x - _x;
-      var dy = y - _y;
-      _x = x;
-      _y = y;
-      socket.emit('moveCover', {dx: dx/paper._viewBox[2], dy: dy/paper._viewBox[3], id: set.id});
+      console.log(map({x: x, y: y}));
+      var new_coord = {
+        x: set.coord.x + x/paper._viewBox[2],//*COORD.x,
+        y: set.coord.y - y/paper._viewBox[3]//*COORD.y
+      }
+      set.coord = new_coord;
+//      console.log(set.coord)
+//      socket.emit('moveCover', {dx: new_coord.x, dy: new_coord.y, id: set.id});
     });
     set.dblclick( function () {
       set.remove();
       socket.emit('removeCover', set.id);
     });
   }
-
-  function map(viewbox, origin) {
+  
+  function map(origin) {
     var tx, ty;
-    tx = Math.round(COORD.x * (origin.x / viewbox[2] - 1 / 2));
-    ty = Math.round(-COORD.y * (origin.y / viewbox[3] - 1 / 2));
+    tx = Math.round(COORD.x * (origin.x / paper._viewBox[2] - 1 / 2));
+    ty = Math.round(-COORD.y * (origin.y / paper._viewBox[3] - 1 / 2));
     return {x: tx, y: ty};
   }
 
-  function inv(viewbox, coord) {
+  function inv(coord) {
     var ox, oy;
-    ox = viewbox[2] / COORD.x * (coord.x + COORD.x / 2);
-    oy = - viewbox[3] / COORD.y * (coord.y - COORD.y / 2);
+    ox = paper._viewBox[2] / COORD.x * (coord.x + COORD.x / 2);
+    oy = - paper._viewBox[3] / COORD.y * (coord.y - COORD.y / 2);
     return {x: ox, y: oy};
   }
   
