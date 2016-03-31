@@ -75,13 +75,14 @@ $(document).ready(function () {
         w = h * img.width / img.height;
       }
       var xy = inv(coord);
+      var MG = w / 16;
       cover.push(
-      me.rect(xy.x - w / 2 - 4, xy.y - h / 2 - 4, w + 8, h + 8).attr({
+      me.rect(xy.x - w / 2 - MG/2, xy.y - h / 2 - MG/2, w + MG, h + MG).attr({
         'stroke': 'black',
         'fill': 'white',
         'stroke-width': 1
-      }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + 20, title).attr({
-        'font-size': 14
+      }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + MG*2, title).attr({
+        'font-size': MG
       }));
       cover.attr({
         'cursor': 'pointer'
@@ -131,8 +132,9 @@ $(document).ready(function () {
     }
     return vars;
   }
+
   $('#submit').click(function () {
-    if ($('img').size() > 48) {
+    if ($('img').size() > 32) {
       message('Too much covers!', 'not-found');
     }
     var asin = $('.search').val();
@@ -184,10 +186,12 @@ $(document).ready(function () {
       'y': y
     };
   }
+  
   socket.on('sendItem', function (data) {
     var src = 'data:image/jpeg;base64,' + data.buffer;
     paper.setCover(src, data.itemInfo.title, data.itemInfo.asin, {x: 0, y: 0});
   });
+  
   socket.on('removeCover', function (data) {
     activeCover.forEach( function (cover) {
       if (cover.id == data) cover.remove();
@@ -203,6 +207,7 @@ $(document).ready(function () {
       }
     });
   });
+  
   Raphael.st.draggable = function () {
     var me = this,
       lx = 0,
@@ -221,20 +226,19 @@ $(document).ready(function () {
       };
     this.drag(moveFnc, startFnc, endFnc);
   };
+  
   function setMouseHandlers(set) {
     set.draggable();
     set.drag( function(x, y) {
       new_coord = map({
-        x: inv(set.coord).x + x,
-        y: inv(set.coord).y + y
+        x: inv(new_coord).x - inv(set.coord).x + x,
+        y: inv(new_coord).y - inv(set.coord).y + y
       });
       console.log(set.coord);
       socket.emit('moveCover', {x: new_coord.x, y: new_coord.y, id: set.id});
-    }, function(){
+    }, function() {
       var new_coord = set.coord;
-    }, function(){
-      set.coord = new_coord;
-    });
+    }, function() { });
     set.dblclick( function () {
       set.remove();
       socket.emit('removeCover', set.id);
@@ -243,8 +247,8 @@ $(document).ready(function () {
   
   function map(origin) {
     var tx, ty;
-    tx = Math.round(COORD.x * (origin.x / paper._viewBox[2] - 1 / 2));
-    ty = Math.round(-COORD.y * (origin.y / paper._viewBox[3] - 1 / 2));
+    tx = COORD.x * (origin.x / paper._viewBox[2] - 1 / 2);
+    ty = -COORD.y * (origin.y / paper._viewBox[3] - 1 / 2);
     return {x: tx, y: ty};
   }
 
@@ -264,5 +268,8 @@ $(document).ready(function () {
       if (!h) h = img.height;
     }
     return originalRaphaelImageFn.call(this, url, x, y, w, h);
+  }
+  function refresh(){
+    console.log();
   }
 });
