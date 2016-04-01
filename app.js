@@ -4,10 +4,9 @@ var express = require('express'),
     http = require('http'),
     https = require('https'),
     path = require('path'),
+    async = require('async'),
     fs = require('fs'),
     querystring = require('querystring'),
-    async = require('async'),
-    apac = require('apac'),
     app = express(),
     server = http.createServer(app),
     util = require('util'),
@@ -34,102 +33,97 @@ app.configure('development', function () {
 
 app.get('/', routes.index);
 
-var OperationHelper = apac.OperationHelper;
-var opHelper = new OperationHelper({
-  endPoint: 'ecs.amazonaws.jp',
-  awsId: 'AKIAJAXY6SYZOMEV2XTQ',
-  awsSecret: '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',
-  assocId: 'msnrhnd04-22'
-});
-var itemInfoPath = 'tmp/itemInfo.json';
-var itemJSON = {};
+function trimTitle (str) {
+  var trimmed = str;
+  if (str.length > 32) {
+    trimmed = str.slice(0, 32) + '…';
+  }
+  return trimmed;
+}
 
 io.sockets.on('connection', function (socket) {
   console.log('connected');
-  socket.on('getItem', function (asin) {
-    try {
-      getItem(asin, function (data) {
-        fs.readFile(data.imagePath, function(e, buffer){
-          var sendItem = {buffer: buffer.toString('base64'), itemInfo: data};
-          socket.emit('sendItem', sendItem);
-          socket.broadcast.emit('sendItem', sendItem);
+  var bookInfoPath = 'tmp/bookInfo.json';
+  var bookJSON = {};
+  socket.on('getBook', function (isbn) {
+    async.waterfall([
+      function (callback) {
+        var rakuten_url = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
+        var par = {
+          'applicationId': '1072038232996204187',
+          'isbnjan': isbn
+        }
+        var title = imageURL = '';
+        if (bookJSON.hasOwnProperty(isbn)) {
+          title = bookJSON[isbn].title;
+          imageURL = bookJSON[isbn].imageURL;
+          callback(null, imageURL, title);
+        } else {
+          https.get(rakuten_url + querystring.stringify(par), function(res) {
+            var body = '';
+            res.on('data', function(chunk) {
+              body += chunk;
+            });
+            res.on('end', function() {
+              var response = JSON.parse(body);
+              try {
+                var item = response.Items[0].Item;
+                title = trimTitle(item.title);
+                imageURL = item.mediumImageUrl;
+                bookJSON[isbn] = {
+                  title: title,
+                  imageURL: imageURL
+                };
+                fs.writeFileSync(bookInfoPath, JSON.stringify(bookJSON));
+                callback(null, imageURL, title);
+              } catch (err) {console.log(err.message);}
+            });
+          });
+        }
+      },
+      function (imageURL, title, callback) {
+        var imagePath = path.join('tmp', isbn + '.jpg');
+        if (!fs.existsSync(imagePath)) {
+          var outFile = fs.createWriteStream(imagePath);
+          http.get(imageURL, function (res) {
+            var imagedata = ''
+            res.setEncoding('binary');
+            res.on('data', function (chunk) {
+              imagedata += chunk;
+            });
+            res.on('end', function () {
+              fs.writeFile(imagePath, imagedata, 'binary', function (err) {
+                if (err) throw err;
+                console.log('File saved.');
+                callback(null, imagePath, title);
+              });
+            })
+          }).on('error', function (err) {
+            console.log(err.message);
+          });
+        } else {
+          callback(null, imagePath, title);
+        };
+      },
+      function (imagePath, title, callback) {
+        fs.readFile(imagePath, function(e, buffer){
+          var sendBook = {buffer: buffer.toString('base64'), title: title, isbn: isbn};
+          callback(null, sendBook);
         });
-      });
-    } catch (err) {
-      console.log(err.message);
-    }
+      }
+    ], function (err, sendBook) {
+      if (err) console.log(err.message);
+      socket.emit('sendBook', sendBook);
+      socket.broadcast.emit('sendBook', sendBook);
+    });
   });
-  socket.on('removeCover', function (data) {
-    socket.broadcast.emit('removeCover', data);
+  socket.on('removeCover', function (isbn) {
+    socket.broadcast.emit('removeCover', isbn);
   });
   socket.on('moveCover', function (data) {
     socket.broadcast.emit('moveCover', data);
   });
-});
-
-function getItem(asin, callback) {
-  function trimTitle(str){
-    var trimmed = str;
-    if (str.length > 16) {
-      trimmed = str.slice(0, 16) + '…';
-    }
-    return trimmed;
-  }
-  async.waterfall([
-    function (callback) {
-      var title = imageURL = '';
-      if (itemJSON.hasOwnProperty(asin)) {
-        title = itemJSON[asin].title;
-        imageURL = itemJSON[asin].imageURL;
-        callback(null, imageURL, title);
-      } else {
-        opHelper.execute('ItemLookup', {
-          'ItemId': asin,
-          'MechantId': 'All',
-          'Condition': 'All',
-          'ResponseGroup': 'Medium'
-        }, function (err, res) {
-          if (err) throw err;
-          try {
-            title = trimTitle(res.ItemLookupResponse.Items[0].Item[0].ItemAttributes[0].Title[0]);
-            imageURL = res.ItemLookupResponse.Items[0].Item[0].MediumImage[0].URL[0];
-            itemJSON[asin] = {
-              title: title,
-              imageURL: imageURL
-            };
-            fs.writeFileSync(itemInfoPath, JSON.stringify(itemJSON));
-            callback(null, imageURL, title);
-          } catch (err) {console.log(err.message);}
-        });
-      }
-    }, function (imageURL, title, callback) {
-      var imagePath = path.join('tmp', asin + '.jpg');
-      if (!fs.existsSync(imagePath)) {
-        var outFile = fs.createWriteStream(imagePath);
-        http.get(imageURL, function (res) {
-          var imagedata = ''
-          res.setEncoding('binary');
-          res.on('data', function (chunk) {
-            imagedata += chunk;
-          });
-          res.on('end', function () {
-            fs.writeFile(imagePath, imagedata, 'binary', function (err) {
-              if (err) throw err;
-              console.log('File saved.');
-              callback(null, imagePath, title);
-            });
-          })
-        }).on('error', function (err) {
-          console.log(err.message);
-        });
-      } else {
-        callback(null, imagePath, title);
-      };
-    }
-  ], function (err, imagePath, title) {
-    if (err) throw err;
-    console.log(imagePath, title);
-    callback({imagePath: imagePath, title: title});
+  socket.on('update', function (data) {
+    socket.broadcast.emit('update', data);
   });
-}
-//getItem('0');
+});

@@ -2,7 +2,7 @@ $(document).ready(function () {
   var socket = io.connect(location.origin);
   var paper = Raphael('main-panel');
   paper.setViewBox(0, 0, $(window).width(), $(window).height(), true);
-  paper.setSize('100%','100%');
+  paper.setSize('100%', '100%');
   var vert, horz, MG;
   var COORD = {x: 256, y: 256};
   var activeCover = new Array();
@@ -35,22 +35,25 @@ $(document).ready(function () {
       'left': '50%' // - 80
     });
     $('#s').css({
-      'top': '100%', //HEIGHT - MG - 2,
+      'top': '100%',
+      //HEIGHT - MG - 2,
       'left': '50%' //WIDTH / 2 - 80
     });
     $('#e').css({
-      'top': '50%', //HEIGHT / 2,
-      'left': '100%', //WIDTH - 160
+      'top': '50%',
+      //HEIGHT / 2,
+      'left': '100%',
+      //WIDTH - 160
       'text-align': 'right'
     });
     $('#w').css({
-      'top': '50%', //HEIGHT / 2,
+      'top': '50%',
+      //HEIGHT / 2,
       'left': 0
     });
     $('body').prepend($('<footer>MANGAMAP2 &copy; 2016 msnrhnd</footer>'));
-  });//(paper._viewBox);
-  $(window).resize(function (){
-  });
+  }); //(paper._viewBox);
+  $(window).resize(function () {});
   $('.axis').change(function () {
     $(this).css('border', 'none');
     if (!$(this).val()) {
@@ -58,41 +61,49 @@ $(document).ready(function () {
     }
   });
 
-  Raphael.fn.setCover = function (src, title, asin, coord) {
+  function trimTitle (str) {
+    var trimmed = str;
+    if (str.length > 16) {
+      trimmed = str.slice(0, 16) + '…';
+    }
+    return trimmed;
+  }
+
+  Raphael.fn.setCover = function (src, title, isbn, coord) {
     var me = this;
     var cover = me.set();
-    cover.id = asin;
+    cover.isbn = isbn;
     cover.coord = coord;
     var img = new Image();
     img.src = src;
     img.onload = function () {
       var w, h;
       if (me._viewBox[2] < me._viewBox[3]) {
-        w = me._viewBox[2] / 8;
+        w = me._viewBox[2] / 7;
         h = w * img.height / img.width;
-      } else {
-        h = me._viewBox[3] / 8;
+      }
+      else {
+        h = me._viewBox[3] / 7;
         w = h * img.width / img.height;
       }
       var xy = inv(coord);
       var MG = w / 16;
       cover.push(
-      me.rect(xy.x - w / 2 - MG/2, xy.y - h / 2 - MG/2, w + MG, h + MG).attr({
+      me.rect(xy.x - w / 2 - MG / 2, xy.y - h / 2 - MG / 2, w + MG, h + MG).attr({
         'stroke': 'black',
         'fill': 'white',
         'stroke-width': 1
-      }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + MG*2, title).attr({
+      }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + MG * 2.5, trimTitle(title)).attr({
         'font-size': MG
       }));
       cover.attr({
         'cursor': 'pointer'
       });
       setMouseHandlers(cover);
-      activeCover.push(cover);
       return cover;
     }
   }
-  
+
   var get_vars = getUrlVars();
   var get_item = get_vars['_'];
   var get_preset = get_vars['preset'];
@@ -137,9 +148,11 @@ $(document).ready(function () {
     if ($('img').size() > 32) {
       message('Too much covers!', 'not-found');
     }
-    var asin = $('.search').val();
-    socket.emit('getItem', asin);
-    $('.search').val('');
+    else {
+      var isbn = $('.search').val();
+      socket.emit('getBook', isbn);
+      $('.search').val('');
+    }
   });
 
   function queryFormat(query) {
@@ -151,7 +164,7 @@ $(document).ready(function () {
     };
     $.each(query_list, function (i, val) {
       console.log(val);
-      temp['asin'] = val;
+      temp.isbn = val;
       digits_list.push(itemStringfy(temp));
     });
     return digits_list;
@@ -170,36 +183,40 @@ $(document).ready(function () {
   }
 
   function itemStringfy(item) {
-    var asin16 = Number(item['asin']).toString(16);
+    var isbn16 = Number(item['isbn']).toString(16);
     var x16 = ('0' + item['x'].toString(16)).slice(-2);
     var y16 = ('0' + item['y'].toString(16)).slice(-2);
-    return asin16 + x16 + y16; // 15digits
+    return isbn16 + x16 + y16; // 15digits
   }
 
   function itemDecode(digits) {
-    var asin = parseInt(digits.slice(0, 11), 16);
+    var isbn = parseInt(digits.slice(0, 11), 16);
     var x = parseInt(digits.slice(11, 13), 16);
     var y = parseInt(digits.slice(13, 15), 16);
     return {
-      'asin': asin,
+      'isbn': isbn,
       'x': x,
       'y': y
     };
   }
-  
-  socket.on('sendItem', function (data) {
+
+  socket.on('sendBook', function (data) {
     var src = 'data:image/jpeg;base64,' + data.buffer;
-    paper.setCover(src, data.itemInfo.title, data.itemInfo.asin, {x: 0, y: 0});
+    var new_cover = paper.setCover(src, data.title, data.isbn, {x: 0, y: 0});
+    activeCover.push(new_cover);
   });
-  
-  socket.on('removeCover', function (data) {
-    activeCover.forEach( function (cover) {
-      if (cover.id == data) cover.remove();
+  socket.on('removeCover', function (isbn) {
+    activeCover.forEach(function (cover) {
+      if (cover.isbn == isbn) {
+        cover.remove();
+        //      activeCover.pop();
+      }
     });
   });
+
   socket.on('moveCover', function (data) {
-    activeCover.forEach( function (cover) {
-      if (cover.id == data.id) {
+    activeCover.forEach(function (cover) {
+      if (cover.isbn == data.isbn) {
         var dx = data.x - cover.coord.x;
         var dy = data.y - cover.coord.y;
         console.log(dx, dy);
@@ -207,42 +224,56 @@ $(document).ready(function () {
       }
     });
   });
+  socket.on('update', function (activeState) {
+    activeState.forEach(function (cover) {});
+  });
   
   Raphael.st.draggable = function () {
     var me = this,
-      lx = 0,
-      ly = 0,
-      ox = 0,
-      oy = 0,
-      moveFnc = function (dx, dy) {
-        lx = dx + ox;
-        ly = dy + oy;
-        me.transform('t' + lx + ',' + ly);
-      },
-      startFnc = function () {},
-      endFnc = function () {
-        ox = lx;
-        oy = ly;
-      };
+        lx = 0,
+        ly = 0,
+        ox = 0,
+        oy = 0,
+        moveFnc = function (dx, dy) {
+          lx = dx + ox;
+          ly = dy + oy;
+          me.transform('t' + lx + ',' + ly);
+        },
+        startFnc = function () {},
+        endFnc = function () {
+          ox = lx;
+          oy = ly;
+        };
     this.drag(moveFnc, startFnc, endFnc);
   };
   
   function setMouseHandlers(set) {
     set.draggable();
-    set.drag( function(x, y) {
-      new_coord = map({
-        x: inv(new_coord).x - inv(set.coord).x + x,
-        y: inv(new_coord).y - inv(set.coord).y + y
-      });
+    set.drag(function (x, y) {
+//      socket.emit('moveCover', {x: set.coord.x, y: set.coord.y, isbn: set.isbn});
+    }, function(){}, function(x, y){
+      set.coord = {
+        x: set.coord.x + x / paper._viewBox[2] * COORD.x,
+        y: set.coord.y - y / paper._viewBox[3] * COORD.y
+      };
+      console.log(x);
       console.log(set.coord);
-      socket.emit('moveCover', {x: new_coord.x, y: new_coord.y, id: set.id});
-    }, function() {
-      var new_coord = set.coord;
-    }, function() { });
-    set.dblclick( function () {
-      set.remove();
-      socket.emit('removeCover', set.id);
     });
+    set.dblclick(function () {
+      socket.emit('removeCover', set.isbn);
+      set.remove();
+    });
+  }
+  function update() {
+    var activeState = [];
+    activeCover.forEach(function (cover) {
+      var temp = {};
+      temp.isbn = cover.isbn;
+      temp.title = cover.title;
+      temp.coord = cover.coord;
+      activeState.push(temp);
+    });
+    socket.emit('update', activeState);
   }
   
   function map(origin) {
@@ -251,11 +282,11 @@ $(document).ready(function () {
     ty = -COORD.y * (origin.y / paper._viewBox[3] - 1 / 2);
     return {x: tx, y: ty};
   }
-
+  
   function inv(coord) {
     var ox, oy;
     ox = paper._viewBox[2] / COORD.x * (coord.x + COORD.x / 2);
-    oy = - paper._viewBox[3] / COORD.y * (coord.y - COORD.y / 2);
+    oy = -paper._viewBox[3] / COORD.y * (coord.y - COORD.y / 2);
     return {x: ox, y: oy};
   }
   
@@ -268,8 +299,5 @@ $(document).ready(function () {
       if (!h) h = img.height;
     }
     return originalRaphaelImageFn.call(this, url, x, y, w, h);
-  }
-  function refresh(){
-    console.log();
   }
 });
