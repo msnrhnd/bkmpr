@@ -5,7 +5,7 @@ $(document).ready(function () {
   paper.setSize('100%', '100%');
   var vert, horz, MG;
   var COORD = {x: 256, y: 256};
-  var activeCover = new Array();
+  var activeCovers = {};
   (function draw(viewbox) {
     var WIDTH = viewbox[2];
     var HEIGHT = viewbox[3];
@@ -64,7 +64,7 @@ $(document).ready(function () {
     }
   });
 
-  Raphael.fn.setCover = function (src, title, isbn, coord) {
+  Raphael.fn.setCover = function (src, title, isbn, coord, callback) {
     function trimTitle16 (str) {
       var trimmed = str;
       if (str.length > 16) {
@@ -81,25 +81,20 @@ $(document).ready(function () {
     var img = new Image();
     img.src = src;
     img.onload = function () {
-      var w, h;
-      if (me._viewBox[2] < me._viewBox[3]) {
-        w = me._viewBox[2] / 7;
-        h = w * img.height / img.width;
-      }
-      else {
-        h = me._viewBox[3] / 7;
-        w = h * img.width / img.height;
-      }
+      var u = Math.sqrt(me._viewBox[2] * me._viewBox[3]);
+      var w = u / 7;
+      var h = w * img.height / img.width;
       var xy = inv(coord);
-      var MG = w / 16;
+      var MG = u / 48;
       cover.push(
-      me.rect(xy.x - w / 2 - MG / 2, xy.y - h / 2 - MG / 2, w + MG, h + MG).attr({
-        'stroke': 'black',
-        'fill': 'white',
-        'stroke-width': 1
-      }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + MG * 4, trimTitle16(title)).attr({
-        'font-size': MG
-      }));
+        me.rect(xy.x - w / 2 - MG / 2, xy.y - h / 2 - MG / 2, w + MG, h + MG).attr({
+          'stroke': 'black',
+          'fill': 'white',
+          'stroke-width': 1
+        }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + MG * 2, trimTitle16(title)).attr({
+          'font-size': MG
+        })
+      );
       cover.attr({
         'cursor': 'pointer'
       });
@@ -154,11 +149,20 @@ $(document).ready(function () {
     }
     else {
       var isbn = $('.search').val().replace(/-/g, '');
-      socket.emit('getBook', isbn);
+      if (!activeCovers.hasOwnProperty(isbn)) {
+        socket.emit('getBook', isbn);
+      }
       $('.search').val('');
     }
   });
 
+  $('#test').click(function () {
+    var books = ['9784845844159', '9784091873453', '9784041032831', '9784041036754', '9784063955491', '9784088902852'];
+    $.each(books, function(i, val){
+      socket.emit('getBook', val);
+    })
+  });
+  
   function queryFormat(query) {
     var query_list = query.split(/\s*,\s*/);
     var digits_list = [];
@@ -207,57 +211,50 @@ $(document).ready(function () {
   socket.on('sendBook', function (data) {
     var src = 'data:image/jpeg;base64,' + data.buffer;
     var new_cover = paper.setCover(src, data.title, data.isbn, {x: 0, y: 0});
-    activeCover.push(new_cover);
+    activeCovers[data.isbn] = new_cover;
   });
 
   socket.on('removeCover', function (isbn) {
-    activeCover.forEach(function (cover) {
-      if (cover.isbn == isbn) {
-        cover.remove();
-        //      activeCover.pop();
-      }
-    });
+    activeCovers[isbn].remove();
   });
 
   socket.on('moveCover', function (data) {
-    activeCover.forEach( function (cover) {
-      if (cover.isbn == data.isbn) {
-        var lx = inv(cover.coord).x + data.coord.dx / COORD.x * paper._viewBox[2];
-        var ly = inv(cover.coord).y - data.coord.dy / COORD.y * paper._viewBox[3];
-        cover.transform('t' + (lx - paper._viewBox[2]/2) + ',' + (ly - paper._viewBox[3]/2));
-      }
-    });
+    var cover = activeCovers[data.isbn];
+    var lx = inv(cover.coord).x + data.coord.dx / COORD.x * paper._viewBox[2];
+    var ly = inv(cover.coord).y - data.coord.dy / COORD.y * paper._viewBox[3];
+    cover.transform('t' + (lx - paper._viewBox[2]/2) + ',' + (ly - paper._viewBox[3]/2));
   });
+  
   socket.on('placeCover', function (data) {
-    activeCover.forEach( function (cover) {
-      if (cover.isbn == data.isbn) {
-        cover.coord = data.coord;
-        console.log(cover.coord);
-      }
-    });
+    var cover = activeCovers[data.isbn];
+    cover.coord = data.coord;
   });
-  socket.on('update', function (activeState) {
-    activeState.forEach(function (cover) {});
+  
+  socket.on('update', function (activeStates) {
+    activeStates.forEach(function (cover) {});
   });
   
   Raphael.st.draggable = function () {
-    var me = this, lx = ly = ox = oy = 0, move = {},
-        moveFnc = function (dx, dy) {
-          lx = dx + ox;
-          ly = dy + oy;
-          me.transform('t' + lx + ',' + ly);
-          move = { dx: dx / paper._viewBox[2] * COORD.x,
-                   dy: - dy / paper._viewBox[3] * COORD.y
-                 };
-          socket.emit('moveCover', {isbn: me.isbn, coord: move});
-        },
-        startFnc = function () {},
-        endFnc = function () {
-          ox = lx;
-          oy = ly;
-          me.coord = {x: me.coord.x + move.dx, y: me.coord.y + move.dy};
-          socket.emit('placeCover', {isbn: me.isbn, coord: me.coord});
-        };
+    var me = this;
+    var lx = ly = 0;
+    var ox = oy = 0;
+    var move = {};
+    moveFnc = function (dx, dy) {
+      lx = dx + ox;
+      ly = dy + oy;
+      me.transform('t' + lx + ',' + ly);
+      move = { dx: dx / paper._viewBox[2] * COORD.x,
+               dy: - dy / paper._viewBox[3] * COORD.y
+             };
+      socket.emit('moveCover', {isbn: me.isbn, coord: move});
+    };
+    startFnc = function () {};
+    endFnc = function () {
+      ox = lx;
+      oy = ly;
+      me.coord = {x: me.coord.x + move.dx, y: me.coord.y + move.dy};
+      socket.emit('placeCover', {isbn: me.isbn, coord: me.coord});
+    };
     this.drag(moveFnc, startFnc, endFnc);
   };
   
@@ -269,15 +266,7 @@ $(document).ready(function () {
     });
   }
   function update() {
-    var activeState = [];
-    activeCover.forEach(function (cover) {
-      var temp = {};
-      temp.isbn = cover.isbn;
-      temp.title = cover.title;
-      temp.coord = cover.coord;
-      activeState.push(temp);
-    });
-    socket.emit('update', activeState);
+    socket.emit('update', activeStates);
   }
   
   function map(origin) {

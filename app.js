@@ -1,12 +1,10 @@
 var express = require('express'),
-//    user = require('./routes/user'),
     http = require('http'),
     https = require('https'),
     path = require('path'),
     async = require('async'),
     fs = require('fs'),
     querystring = require('querystring'),
-//    util = require('util'),
     app = express(),
     server = http.createServer(app),
     routes = require('./routes'),
@@ -42,11 +40,11 @@ function trimTitle32 (str) {
 }
 
 var rakuten_url = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
-var infoPath = 'tmp/activeState.json';
+var infoPath = 'tmp/activeStates.json';
 
 io.sockets.on('connection', function (socket) {
   console.log('connected');
-  var activeState = [];
+  var activeStates = {};
   socket.on('getBook', function (isbn) {
     async.waterfall([
       function (callback) {
@@ -55,66 +53,76 @@ io.sockets.on('connection', function (socket) {
           'applicationId': '1072038232996204187',
           'isbnjan': isbn
         }
-        for (var i; i < activeState.length; i++) {
-          if (activeState[i].isbn == isbn) {
-            title = activeState[i].title;
-            imageURL = activeState[i].imageURL;
-            callback(null, imageURL, title);
-          }
-        }
-        https.get(rakuten_url + querystring.stringify(par), function(res) {
+        title = activeStates[isbn].title;
+        imageURL = activeStates[isbn].imageURL;
+        callback(null, imageURL, title);
+        https.get(rakuten_url + querystring.stringify(par), function (res) {
           var body = '';
-          res.on('data', function(chunk) {
+          res.on('data', function (chunk) {
             body += chunk;
           });
-          res.on('end', function() {
+          res.on('end', function () {
             var response = JSON.parse(body);
             try {
               var item = response.Items[0].Item;
               title = trimTitle32(item.title);
               imageURL = item.mediumImageUrl;
-              activeState.push({title: title, imageURL: imageURL, isbn: isbn});
-              fs.writeFileSync(infoPath, JSON.stringify(activeState));
-              callback(null, imageURL, title);
-            } catch (err) {console.log(err.message);}
-          });
-        });
-      },
-      function (imageURL, title, callback) {
-        var imagePath = path.join('tmp', isbn + '.jpg');
-        if (!fs.existsSync(imagePath)) {
-          var outFile = fs.createWriteStream(imagePath);
-          http.get(imageURL, function (res) {
-            var imagedata = ''
-            res.setEncoding('binary');
-            res.on('data', function (chunk) {
-              imagedata += chunk;
-            });
-            res.on('end', function () {
-              fs.writeFile(imagePath, imagedata, 'binary', function (err) {
-                if (err) throw err;
-                console.log('File saved.');
-                callback(null, imagePath, title);
+              activeStates.push({
+                title: title,
+                imageURL: imageURL,
+                isbn: isbn,
+                x: 0,
+                y: 0
               });
-            })
-          }).on('error', function (err) {
-            console.log(err.message);
+              fs.writeFileSync(infoPath, JSON.stringify(activeStates));
+              callback(null, imageURL, title);
+            }
+            catch (err) {
+              console.log(err.message);
+            }
           });
-        } else {
-          callback(null, imagePath, title);
-        };
-      },
-      function (imagePath, title, callback) {
-        fs.readFile(imagePath, function(e, buffer){
-          var sendBook = {buffer: buffer.toString('base64'), title: title, isbn: isbn};
-          callback(null, sendBook);
         });
-      }
-    ], function (err, sendBook) {
-      if (err) console.log(err.message);
-      socket.emit('sendBook', sendBook);
-      socket.broadcast.emit('sendBook', sendBook);
-    });
+      },
+        function (imageURL, title, callback) {
+          var imagePath = path.join('tmp', isbn + '.jpg');
+          if (!fs.existsSync(imagePath)) {
+            var outFile = fs.createWriteStream(imagePath);
+            http.get(imageURL, function (res) {
+              var imagedata = ''
+              res.setEncoding('binary');
+              res.on('data', function (chunk) {
+                imagedata += chunk;
+                  });
+              res.on('end', function () {
+                fs.writeFile(imagePath, imagedata, 'binary', function (err) {
+                  if (err) throw err;
+                  console.log('File saved.');
+                  callback(null, imagePath, title);
+                });
+              })
+            }).on('error', function (err) {
+              console.log(err.message);
+            });
+          }
+          else {
+            callback(null, imagePath, title);
+          };
+        },
+        function (imagePath, title, callback) {
+          fs.readFile(imagePath, function (e, buffer) {
+            var sendBook = {
+              buffer: buffer.toString('base64'),
+              title: title,
+              isbn: isbn
+            };
+            callback(null, sendBook);
+          });
+        }
+        ], function (err, sendBook) {
+          if (err) console.log(err.message);
+          socket.emit('sendBook', sendBook);
+          socket.broadcast.emit('sendBook', sendBook);
+        });
   });
   socket.on('removeCover', function (isbn) {
     socket.broadcast.emit('removeCover', isbn);
@@ -129,4 +137,3 @@ io.sockets.on('connection', function (socket) {
     socket.broadcast.emit('update', data);
   });
 });
-'9784845844159 9784091873453 9784041032831 9784041036754'
