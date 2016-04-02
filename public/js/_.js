@@ -53,7 +53,10 @@ $(document).ready(function () {
     });
     $('body').prepend($('<footer>MANGAMAP2 &copy; 2016 msnrhnd</footer>'));
   }); //(paper._viewBox);
-  $(window).resize(function () {});
+  $(window).resize(function () {
+    //テキストボックスの再描画
+  });
+  
   $('.axis').change(function () {
     $(this).css('border', 'none');
     if (!$(this).val()) {
@@ -61,15 +64,16 @@ $(document).ready(function () {
     }
   });
 
-  function trimTitle (str) {
-    var trimmed = str;
-    if (str.length > 16) {
-      trimmed = str.slice(0, 16) + '…';
-    }
-    return trimmed;
-  }
-
   Raphael.fn.setCover = function (src, title, isbn, coord) {
+    function trimTitle16 (str) {
+      var trimmed = str;
+      if (str.length > 16) {
+        trimmed = str.slice(0, 15) + '…';
+      }
+      var mid = Math.round(trimmed.length / 2);
+      trimmed = trimmed.slice(0, mid) + '\n' + trimmed.slice(mid, trimmed.length);
+      return trimmed;
+    }
     var me = this;
     var cover = me.set();
     cover.isbn = isbn;
@@ -93,15 +97,15 @@ $(document).ready(function () {
         'stroke': 'black',
         'fill': 'white',
         'stroke-width': 1
-      }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + MG * 2.5, trimTitle(title)).attr({
+      }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + MG * 4, trimTitle16(title)).attr({
         'font-size': MG
       }));
       cover.attr({
         'cursor': 'pointer'
       });
       setMouseHandlers(cover);
-      return cover;
     }
+    return cover;
   }
 
   var get_vars = getUrlVars();
@@ -149,7 +153,7 @@ $(document).ready(function () {
       message('Too much covers!', 'not-found');
     }
     else {
-      var isbn = $('.search').val();
+      var isbn = $('.search').val().replace(/-/g, '');
       socket.emit('getBook', isbn);
       $('.search').val('');
     }
@@ -205,6 +209,7 @@ $(document).ready(function () {
     var new_cover = paper.setCover(src, data.title, data.isbn, {x: 0, y: 0});
     activeCover.push(new_cover);
   });
+
   socket.on('removeCover', function (isbn) {
     activeCover.forEach(function (cover) {
       if (cover.isbn == isbn) {
@@ -215,12 +220,19 @@ $(document).ready(function () {
   });
 
   socket.on('moveCover', function (data) {
-    activeCover.forEach(function (cover) {
+    activeCover.forEach( function (cover) {
       if (cover.isbn == data.isbn) {
-        var dx = data.x - cover.coord.x;
-        var dy = data.y - cover.coord.y;
-        console.log(dx, dy);
-        cover.translate(dx, dy);
+        var lx = inv(cover.coord).x + data.coord.dx / COORD.x * paper._viewBox[2];
+        var ly = inv(cover.coord).y - data.coord.dy / COORD.y * paper._viewBox[3];
+        cover.transform('t' + (lx - paper._viewBox[2]/2) + ',' + (ly - paper._viewBox[3]/2));
+      }
+    });
+  });
+  socket.on('placeCover', function (data) {
+    activeCover.forEach( function (cover) {
+      if (cover.isbn == data.isbn) {
+        cover.coord = data.coord;
+        console.log(cover.coord);
       }
     });
   });
@@ -229,36 +241,28 @@ $(document).ready(function () {
   });
   
   Raphael.st.draggable = function () {
-    var me = this,
-        lx = 0,
-        ly = 0,
-        ox = 0,
-        oy = 0,
+    var me = this, lx = ly = ox = oy = 0, move = {},
         moveFnc = function (dx, dy) {
           lx = dx + ox;
           ly = dy + oy;
           me.transform('t' + lx + ',' + ly);
+          move = { dx: dx / paper._viewBox[2] * COORD.x,
+                   dy: - dy / paper._viewBox[3] * COORD.y
+                 };
+          socket.emit('moveCover', {isbn: me.isbn, coord: move});
         },
         startFnc = function () {},
         endFnc = function () {
           ox = lx;
           oy = ly;
+          me.coord = {x: me.coord.x + move.dx, y: me.coord.y + move.dy};
+          socket.emit('placeCover', {isbn: me.isbn, coord: me.coord});
         };
     this.drag(moveFnc, startFnc, endFnc);
   };
   
   function setMouseHandlers(set) {
     set.draggable();
-    set.drag(function (x, y) {
-//      socket.emit('moveCover', {x: set.coord.x, y: set.coord.y, isbn: set.isbn});
-    }, function(){}, function(x, y){
-      set.coord = {
-        x: set.coord.x + x / paper._viewBox[2] * COORD.x,
-        y: set.coord.y - y / paper._viewBox[3] * COORD.y
-      };
-      console.log(x);
-      console.log(set.coord);
-    });
     set.dblclick(function () {
       socket.emit('removeCover', set.isbn);
       set.remove();

@@ -1,15 +1,15 @@
 var express = require('express'),
-    routes = require('./routes'),
-    user = require('./routes/user'),
+//    user = require('./routes/user'),
     http = require('http'),
     https = require('https'),
     path = require('path'),
     async = require('async'),
     fs = require('fs'),
     querystring = require('querystring'),
+//    util = require('util'),
     app = express(),
     server = http.createServer(app),
-    util = require('util'),
+    routes = require('./routes'),
     io = require('socket.io').listen(server);
 
 var port = Number(process.env.PORT || 8080);
@@ -23,7 +23,7 @@ app.configure(function () {
   app.use(express.json());
   app.use(express.urlencoded());
   app.use(express.methodOverride());
-  app.use(app.router);
+//  app.use(app.router);
   app.use(express.static(path.join(__dirname, 'public')));
 });
 
@@ -33,7 +33,7 @@ app.configure('development', function () {
 
 app.get('/', routes.index);
 
-function trimTitle (str) {
+function trimTitle32 (str) {
   var trimmed = str;
   if (str.length > 32) {
     trimmed = str.slice(0, 32) + '…';
@@ -41,45 +41,44 @@ function trimTitle (str) {
   return trimmed;
 }
 
+var rakuten_url = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
+var infoPath = 'tmp/activeState.json';
+
 io.sockets.on('connection', function (socket) {
   console.log('connected');
-  var bookInfoPath = 'tmp/bookInfo.json';
-  var bookJSON = {};
+  var activeState = [];
   socket.on('getBook', function (isbn) {
     async.waterfall([
       function (callback) {
-        var rakuten_url = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
+        var title = imageURL = '';
         var par = {
           'applicationId': '1072038232996204187',
           'isbnjan': isbn
         }
-        var title = imageURL = '';
-        if (bookJSON.hasOwnProperty(isbn)) {
-          title = bookJSON[isbn].title;
-          imageURL = bookJSON[isbn].imageURL;
-          callback(null, imageURL, title);
-        } else {
-          https.get(rakuten_url + querystring.stringify(par), function(res) {
-            var body = '';
-            res.on('data', function(chunk) {
-              body += chunk;
-            });
-            res.on('end', function() {
-              var response = JSON.parse(body);
-              try {
-                var item = response.Items[0].Item;
-                title = trimTitle(item.title);
-                imageURL = item.mediumImageUrl;
-                bookJSON[isbn] = {
-                  title: title,
-                  imageURL: imageURL
-                };
-                fs.writeFileSync(bookInfoPath, JSON.stringify(bookJSON));
-                callback(null, imageURL, title);
-              } catch (err) {console.log(err.message);}
-            });
-          });
+        for (var i; i < activeState.length; i++) {
+          if (activeState[i].isbn == isbn) {
+            title = activeState[i].title;
+            imageURL = activeState[i].imageURL;
+            callback(null, imageURL, title);
+          }
         }
+        https.get(rakuten_url + querystring.stringify(par), function(res) {
+          var body = '';
+          res.on('data', function(chunk) {
+            body += chunk;
+          });
+          res.on('end', function() {
+            var response = JSON.parse(body);
+            try {
+              var item = response.Items[0].Item;
+              title = trimTitle32(item.title);
+              imageURL = item.mediumImageUrl;
+              activeState.push({title: title, imageURL: imageURL, isbn: isbn});
+              fs.writeFileSync(infoPath, JSON.stringify(activeState));
+              callback(null, imageURL, title);
+            } catch (err) {console.log(err.message);}
+          });
+        });
       },
       function (imageURL, title, callback) {
         var imagePath = path.join('tmp', isbn + '.jpg');
@@ -123,7 +122,11 @@ io.sockets.on('connection', function (socket) {
   socket.on('moveCover', function (data) {
     socket.broadcast.emit('moveCover', data);
   });
+  socket.on('placeCover', function (data) {
+    socket.broadcast.emit('placeCover', data);
+  });
   socket.on('update', function (data) {
     socket.broadcast.emit('update', data);
   });
 });
+'9784845844159 9784091873453 9784041032831 9784041036754'
