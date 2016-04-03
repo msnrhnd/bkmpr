@@ -143,7 +143,6 @@ $(document).ready(function () {
   });
 
   socket.on('init', function (activeStates) {
-    console.log(activeStates);
     $.each(activeStates, function(isbn, book) {
       socket.emit('getBook', isbn, book.coord);
     });
@@ -167,7 +166,7 @@ $(document).ready(function () {
   });
   
   socket.on('placeCover', function (data) {
-    activeCovers[data.isbn].coord = data.coord;
+    activeCovers[data.isbn].coord = {x: data.x, y: data.y};
   });
   
   socket.on('update', function (activeStates) {
@@ -189,8 +188,7 @@ $(document).ready(function () {
     endFnc = function () {
       ox = lx;
       oy = ly;
-      me.coord = {x: lx / paper._viewBox[2] * COORD.x, y: -ly / paper._viewBox[3] * COORD.y};
-      socket.emit('placeCover', {isbn: me.isbn, coord: me.coord});
+      socket.emit('placeCover', {isbn: me.isbn, x: me.coord.x + lx / paper._viewBox[2] * COORD.x, y:  me.coord.y - ly / paper._viewBox[3] * COORD.y});
     };
     this.drag(moveFnc, startFnc, endFnc);
   };

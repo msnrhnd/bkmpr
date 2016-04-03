@@ -38,6 +38,22 @@ function trimTitle32 (str) {
   return trimmed;
 }
 
+function trimCoord (coord) {
+  if (coord.x > 128) {
+    coord.x = 128;
+  }
+  if (coord.x < -128) {
+    coord.x = -128;
+  }
+  if (coord.y > 128) {
+    coord.y = 128;
+  }
+  if (coord.y < -128) {
+    coord.y = -128;
+  }
+  return coord;
+}
+
 var rakuten_url = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
 var infoPath = 'tmp/activeStates.json';
 try {
@@ -146,7 +162,8 @@ io.sockets.on('connection', function (socket) {
   });
   
   socket.on('placeCover', function (data) {
-    activeStates[data.isbn].coord = data.coord;
+    activeStates[data.isbn].coord = trimCoord({x: data.x, y: data.y});
+    socket.emit('placeCover', data);
     socket.broadcast.emit('placeCover', data);
     fs.writeFileSync(infoPath, JSON.stringify(activeStates));
   });
