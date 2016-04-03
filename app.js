@@ -48,7 +48,10 @@ try {
 
 io.sockets.on('connection', function (socket) {
   console.log('connected');
-//  socket.emit('init', activeStates);
+  socket.on('disconnect', function (socket) {
+    console.log('disconnected');
+  });
+  socket.emit('init', activeStates);
   socket.on('getBook', function (isbn, coord) {
     async.waterfall([
       function (callback) {

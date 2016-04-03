@@ -143,17 +143,18 @@ $(document).ready(function () {
   });
 
   socket.on('init', function (activeStates) {
+    console.log(activeStates);
     $.each(activeStates, function(isbn, book) {
-      if (!activeCovers.hasOwnProperty(isbn)) {
-        socket.emit('getBook', isbn, book.coord);
-      };
+      socket.emit('getBook', isbn, book.coord);
     });
   });
   
   socket.on('sendBook', function (data) {
-    var src = 'data:image/jpeg;base64,' + data.buffer;
-    var new_cover = paper.setCover(src, data.title, data.isbn, data.coord);
-    activeCovers[data.isbn] = new_cover;
+    if (!activeCovers.hasOwnProperty(data.isbn)){
+      var src = 'data:image/jpeg;base64,' + data.buffer;
+      var new_cover = paper.setCover(src, data.title, data.isbn, data.coord);
+      activeCovers[data.isbn] = new_cover;
+    }
   });
 
   socket.on('removeCover', function (isbn) {
@@ -171,7 +172,7 @@ $(document).ready(function () {
   
   socket.on('update', function (activeStates) {
   });
-  
+
   Raphael.st.draggable = function () {
     var me = this;
     var lx = 0;
