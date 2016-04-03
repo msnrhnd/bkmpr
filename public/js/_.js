@@ -167,7 +167,6 @@ $(document).ready(function () {
   
   socket.on('placeCover', function (data) {
     activeCovers[data.isbn].coord = data.coord;
-//    console.log(data.coord);
   });
   
   socket.on('update', function (activeStates) {
@@ -185,14 +184,11 @@ $(document).ready(function () {
       socket.emit('moveCover', {isbn: me.isbn, lx: lx / paper._viewBox[2] * COORD.x, ly:  -ly / paper._viewBox[3] * COORD.y});
     };
     startFnc = function () {
-      console.log(ox, oy);
     };
     endFnc = function () {
       ox = lx;
       oy = ly;
-      console.log(ox, oy);
       me.coord = {x: lx / paper._viewBox[2] * COORD.x, y: -ly / paper._viewBox[3] * COORD.y};
-//      console.log(me.coord);
       socket.emit('placeCover', {isbn: me.isbn, coord: me.coord});
     };
     this.drag(moveFnc, startFnc, endFnc);
