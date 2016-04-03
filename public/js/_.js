@@ -82,7 +82,7 @@ $(document).ready(function () {
     img.src = src;
     img.onload = function () {
       var u = Math.sqrt(me._viewBox[2] * me._viewBox[3]);
-      var w = u / 7;
+      var w = u / 8;
       var h = w * img.height / img.width;
       var xy = inv(coord);
       var MG = u / 48;
