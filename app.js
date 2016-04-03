@@ -41,11 +41,16 @@ function trimTitle32 (str) {
 
 var rakuten_url = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
 var infoPath = 'tmp/activeStates.json';
+try {
+  var activeStates = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+} catch (err) {
+  var activeStates = {};
+}
 
 io.sockets.on('connection', function (socket) {
   console.log('connected');
-  var activeStates = {};
-  socket.on('getBook', function (isbn) {
+//  socket.emit('init', activeStates);
+  socket.on('getBook', function (isbn, coord) {
     async.waterfall([
       function (callback) {
         var title = imageURL = '';
@@ -53,86 +58,97 @@ io.sockets.on('connection', function (socket) {
           'applicationId': '1072038232996204187',
           'isbnjan': isbn
         }
-        title = activeStates[isbn].title;
-        imageURL = activeStates[isbn].imageURL;
-        callback(null, imageURL, title);
-        https.get(rakuten_url + querystring.stringify(par), function (res) {
-          var body = '';
-          res.on('data', function (chunk) {
-            body += chunk;
-          });
-          res.on('end', function () {
-            var response = JSON.parse(body);
-            try {
-              var item = response.Items[0].Item;
-              title = trimTitle32(item.title);
-              imageURL = item.mediumImageUrl;
-              activeStates.push({
-                title: title,
-                imageURL: imageURL,
-                isbn: isbn,
-                x: 0,
-                y: 0
-              });
-              fs.writeFileSync(infoPath, JSON.stringify(activeStates));
-              callback(null, imageURL, title);
-            }
-            catch (err) {
-              console.log(err.message);
-            }
-          });
-        });
-      },
-        function (imageURL, title, callback) {
-          var imagePath = path.join('tmp', isbn + '.jpg');
-          if (!fs.existsSync(imagePath)) {
-            var outFile = fs.createWriteStream(imagePath);
-            http.get(imageURL, function (res) {
-              var imagedata = ''
-              res.setEncoding('binary');
-              res.on('data', function (chunk) {
-                imagedata += chunk;
-                  });
-              res.on('end', function () {
-                fs.writeFile(imagePath, imagedata, 'binary', function (err) {
-                  if (err) throw err;
-                  console.log('File saved.');
-                  callback(null, imagePath, title);
-                });
-              })
-            }).on('error', function (err) {
-              console.log(err.message);
+        if (activeStates.hasOwnProperty(isbn)) {
+          title = activeStates[isbn].title;
+          imageURL = activeStates[isbn].imageURL;
+          callback(null, isbn, imageURL, title);
+        } else {
+          https.get(rakuten_url + querystring.stringify(par), function (res) {
+            var body = '';
+            res.on('data', function (chunk) {
+              body += chunk;
             });
-          }
-          else {
-            callback(null, imagePath, title);
-          };
-        },
-        function (imagePath, title, callback) {
-          fs.readFile(imagePath, function (e, buffer) {
-            var sendBook = {
-              buffer: buffer.toString('base64'),
-              title: title,
-              isbn: isbn
-            };
-            callback(null, sendBook);
+            res.on('end', function () {
+              var response = JSON.parse(body);
+              console.log(response);
+              try {
+                var item = response.Items[0].Item;
+                title = trimTitle32(item.title);
+                imageURL = item.mediumImageUrl;
+                activeStates[isbn] = {};
+                activeStates[isbn].title = title;
+                activeStates[isbn].imageURL = imageURL;
+                activeStates[isbn].coord = coord;
+                fs.writeFileSync(infoPath, JSON.stringify(activeStates));
+                setTimeout(callback(null, isbn, imageURL, title), 1000);
+              }
+              catch (err) {
+                console.log(err.message);
+              }
+            });
+          });
+        };
+      },
+      function (isbn, imageURL, title, callback) {
+        var imagePath = path.join('tmp', isbn + '.jpg');
+        if (!fs.existsSync(imagePath)) {
+          var outFile = fs.createWriteStream(imagePath);
+          http.get(imageURL, function (res) {
+            var imagedata = ''
+            res.setEncoding('binary');
+            res.on('data', function (chunk) {
+              imagedata += chunk;
+            });
+            res.on('end', function () {
+              fs.writeFile(imagePath, imagedata, 'binary', function (err) {
+                if (err) throw err;
+                console.log('File saved.');
+                setTimeout(callback(null, isbn, imagePath, title), 1000);
+              });
+            })
+          }).on('error', function (err) {
+            console.log(err.message);
           });
         }
-        ], function (err, sendBook) {
-          if (err) console.log(err.message);
-          socket.emit('sendBook', sendBook);
-          socket.broadcast.emit('sendBook', sendBook);
+        else {
+          callback(null, isbn, imagePath, title);
+        };
+      },
+      function (isbn, imagePath, title, callback) {
+        fs.readFile(imagePath, function (e, buffer) {
+          var sendBook = {
+            buffer: buffer.toString('base64'),
+            title: title,
+            isbn: isbn,
+            coord: coord
+          };
+          callback(null, sendBook);
         });
+      }
+    ], function (err, sendBook) {
+      if (err) console.log(err.message);
+      socket.emit('sendBook', sendBook);
+      socket.broadcast.emit('sendBook', sendBook);
+    });
   });
+  
   socket.on('removeCover', function (isbn) {
     socket.broadcast.emit('removeCover', isbn);
+    fs.writeFileSync(infoPath, JSON.stringify(activeStates));
+    delete activeStates[isbn];
   });
+  
   socket.on('moveCover', function (data) {
+    socket.emit('moveCover', data);
     socket.broadcast.emit('moveCover', data);
   });
+  
   socket.on('placeCover', function (data) {
+    activeStates[data.isbn].coord = data.coord;
     socket.broadcast.emit('placeCover', data);
+    fs.writeFileSync(infoPath, JSON.stringify(activeStates));
   });
+  
   socket.on('update', function (data) {
     socket.broadcast.emit('update', data);
   });
