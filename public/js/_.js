@@ -198,9 +198,9 @@ $(document).ready(function () {
     set.draggable();
     set.dblclick(function () {
       socket.emit('removeCover', set.isbn);
-      set.remove();
     });
   }
+  
   function update() {
     socket.emit('update', activeStates);
   }

@@ -142,9 +142,10 @@ io.sockets.on('connection', function (socket) {
   });
   
   socket.on('removeCover', function (isbn) {
+    socket.emit('removeCover', isbn);
     socket.broadcast.emit('removeCover', isbn);
-    fs.writeFileSync(infoPath, JSON.stringify(activeStates));
     delete activeStates[isbn];
+    fs.writeFileSync(infoPath, JSON.stringify(activeStates));
   });
   
   socket.on('moveCover', function (data) {
