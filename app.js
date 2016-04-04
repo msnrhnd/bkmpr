@@ -39,17 +39,8 @@ function trimTitle32 (str) {
 }
 
 function trimCoord (coord) {
-  if (coord.x > 128) {
-    coord.x = 128;
-  }
-  if (coord.x < -128) {
-    coord.x = -128;
-  }
-  if (coord.y > 128) {
-    coord.y = 128;
-  }
-  if (coord.y < -128) {
-    coord.y = -128;
+  for (k in coord) {
+    coord.k = Math.min( Math.max(coord.k, -128), 128);
   }
   return coord;
 }
@@ -138,7 +129,7 @@ io.sockets.on('connection', function (socket) {
             buffer: buffer.toString('base64'),
             title: title,
             isbn: isbn,
-            coord: coord
+            coord: trimCoord(coord)
           };
           callback(null, sendBook);
         });

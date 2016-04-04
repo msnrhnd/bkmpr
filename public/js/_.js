@@ -1,4 +1,5 @@
 $(document).ready(function () {
+  
   var socket = io.connect(location.origin);
   var paper = Raphael('main-panel');
   paper.setViewBox(0, 0, $(window).width(), $(window).height(), true);
@@ -117,7 +118,7 @@ $(document).ready(function () {
   });
 
   $('#test').click(function () {
-    var books = ['9784845844159', '9784091873453', '9784041032831', '9784041036754', '9784063955491', '9784088902852'];
+    var books = ['9784758101509', '9784758101493', '9784758101486', '9784758101479', '9784758101486', '9784758101479'];
     $.each(books, function(i, val){
       socket.emit('getBook', val, {x: 0, y: 0});
     })
