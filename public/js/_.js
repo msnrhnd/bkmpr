@@ -1,5 +1,4 @@
 $(document).ready(function () {
-  
   var socket = io.connect(location.origin);
   var paper = Raphael('main-panel');
   paper.setViewBox(0, 0, $(window).width(), $(window).height(), true);
@@ -86,14 +85,14 @@ $(document).ready(function () {
       var w = u / 8;
       var h = w * img.height / img.width;
       var xy = inv(coord);
-      var MG = u / 48;
+      var margin = u / 96;
       cover.push(
-        me.rect(xy.x - w / 2 - MG / 2, xy.y - h / 2 - MG / 2, w + MG, h + MG).attr({
+        me.rect(xy.x - w / 2 - margin / 2, xy.y - h / 2 - margin / 2, w + margin, h + margin).attr({
           'stroke': 'black',
           'fill': 'white',
           'stroke-width': 1
-        }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + MG * 2, trimTitle16(title)).attr({
-          'font-size': MG
+        }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + margin * 4, trimTitle16(title)).attr({
+          'font-size': margin * 2
         })
       );
       cover.attr({
@@ -148,7 +147,7 @@ $(document).ready(function () {
       socket.emit('getBook', isbn, book.coord);
     });
   });
-  
+
   socket.on('sendBook', function (data) {
     if (!activeCovers.hasOwnProperty(data.isbn)){
       var src = 'data:image/jpeg;base64,' + data.buffer;
@@ -159,6 +158,7 @@ $(document).ready(function () {
 
   socket.on('removeCover', function (isbn) {
     activeCovers[isbn].remove();
+    console.log(isbn, activeCovers);
   });
 
   socket.on('moveCover', function (data) {
@@ -168,11 +168,15 @@ $(document).ready(function () {
   
   socket.on('placeCover', function (data) {
     activeCovers[data.isbn].coord = {x: data.x, y: data.y};
+    console.log(activeCovers[data.isbn].coord);
   });
   
   socket.on('update', function (activeStates) {
   });
 
+  Raphael.st.undraggable = function () {
+  }
+  
   Raphael.st.draggable = function () {
     var me = this;
     var lx = 0;

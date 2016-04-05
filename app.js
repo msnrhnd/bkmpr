@@ -142,9 +142,9 @@ io.sockets.on('connection', function (socket) {
   });
   
   socket.on('removeCover', function (isbn) {
+    delete activeStates[isbn];
     socket.emit('removeCover', isbn);
     socket.broadcast.emit('removeCover', isbn);
-    delete activeStates[isbn];
     fs.writeFileSync(infoPath, JSON.stringify(activeStates));
   });
   
@@ -155,9 +155,9 @@ io.sockets.on('connection', function (socket) {
   
   socket.on('placeCover', function (data) {
     activeStates[data.isbn].coord = trimCoord({x: data.x, y: data.y});
+    fs.writeFileSync(infoPath, JSON.stringify(activeStates));
     socket.emit('placeCover', data);
     socket.broadcast.emit('placeCover', data);
-    fs.writeFileSync(infoPath, JSON.stringify(activeStates));
   });
   
   socket.on('update', function (data) {
