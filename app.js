@@ -40,7 +40,7 @@ function trimTitle32 (str) {
 
 function trimCoord (coord) {
   for (k in coord) {
-    coord.k = Math.min( Math.max(coord.k, -128), 128);
+    coord[k] = Math.min( Math.max(coord[k], -128), 128);
   }
   return coord;
 }
@@ -79,7 +79,6 @@ io.sockets.on('connection', function (socket) {
             });
             res.on('end', function () {
               var response = JSON.parse(body);
-              console.log(response);
               try {
                 var item = response.Items[0].Item;
                 title = trimTitle32(item.title);

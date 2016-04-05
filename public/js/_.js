@@ -144,6 +144,7 @@ $(document).ready(function () {
 
   socket.on('init', function (activeStates) {
     $.each(activeStates, function(isbn, book) {
+      console.log(activeStates);
       socket.emit('getBook', isbn, book.coord);
     });
   });
@@ -158,7 +159,7 @@ $(document).ready(function () {
 
   socket.on('removeCover', function (isbn) {
     activeCovers[isbn].remove();
-    console.log(isbn, activeCovers);
+//    console.log(isbn, activeCovers);
   });
 
   socket.on('moveCover', function (data) {
@@ -168,7 +169,7 @@ $(document).ready(function () {
   
   socket.on('placeCover', function (data) {
     activeCovers[data.isbn].coord = {x: data.x, y: data.y};
-    console.log(activeCovers[data.isbn].coord);
+//    console.log(activeCovers[data.isbn].coord);
   });
   
   socket.on('update', function (activeStates) {
@@ -184,16 +185,19 @@ $(document).ready(function () {
     var ox = 0;
     var oy = 0;
     moveFnc = function (dx, dy) {
+      console.log(dx, dy);
       lx = ox + dx;
       ly = oy + dy;
-      socket.emit('moveCover', {isbn: me.isbn, lx: lx / paper._viewBox[2] * COORD.x, ly:  -ly / paper._viewBox[3] * COORD.y});
+      socket.emit('moveCover', {isbn: me.isbn, lx: (ox+dx) / paper._viewBox[2] * COORD.x, ly:  -(oy+dy) / paper._viewBox[3] * COORD.y});
     };
     startFnc = function () {
     };
     endFnc = function () {
+      var new_coord = {isbn: me.isbn, x: me.coord.x + (lx - ox) / paper._viewBox[2] * COORD.x, y:  me.coord.y - (ly - oy) / paper._viewBox[3] * COORD.y}
       ox = lx;
       oy = ly;
-      socket.emit('placeCover', {isbn: me.isbn, x: me.coord.x + lx / paper._viewBox[2] * COORD.x, y:  me.coord.y - ly / paper._viewBox[3] * COORD.y});
+      socket.emit('placeCover', new_coord);
+      console.log(new_coord);
     };
     this.drag(moveFnc, startFnc, endFnc);
   };
