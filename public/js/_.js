@@ -84,14 +84,13 @@ $(document).ready(function () {
       var u = Math.sqrt(me._viewBox[2] * me._viewBox[3]);
       var w = u / 8;
       var h = w * img.height / img.width;
-      var xy = inv(coord);
       var margin = u / 96;
       cover.push(
-        me.rect(xy.x - w / 2 - margin / 2, xy.y - h / 2 - margin / 2, w + margin, h + margin).attr({
+        me.rect(- w / 2 - margin / 2, - h / 2 - margin / 2, w + margin, h + margin).attr({
           'stroke': 'black',
           'fill': 'white',
           'stroke-width': 1
-        }), me.image(src, xy.x - w / 2, xy.y - h / 2, w, h), me.text(xy.x, xy.y + h / 2 + margin * 4, trimTitle16(title)).attr({
+        }), me.image(src, - w / 2, - h / 2, w, h), me.text(0, h / 2 + margin * 4, trimTitle16(title)).attr({
           'font-size': margin * 2
         })
       );
@@ -99,6 +98,7 @@ $(document).ready(function () {
         'cursor': 'pointer'
       });
       setMouseHandlers(cover);
+      cover.transform('t' + inv(coord).x + ',' + inv(coord).y);
     }
     return cover;
   }
@@ -117,7 +117,7 @@ $(document).ready(function () {
   });
 
   $('#test').click(function () {
-    var books = ['9784758101509', '9784758101493', '9784758101486', '9784758101479', '9784758101486', '9784758101479'];
+    var books = ['9784758101509', '9784758101493', '9784758101486', '9784758101479', '9784758101462', '9784758101455'];
     $.each(books, function(i, val){
       socket.emit('getBook', val, {x: 0, y: 0});
     })
@@ -159,17 +159,16 @@ $(document).ready(function () {
 
   socket.on('removeCover', function (isbn) {
     activeCovers[isbn].remove();
-//    console.log(isbn, activeCovers);
   });
 
   socket.on('moveCover', function (data) {
     var cover = activeCovers[data.isbn];
-    cover.transform('t' + (data.lx / COORD.x * paper._viewBox[2]) + ',' + (-data.ly / COORD.y * paper._viewBox[3]));
+    var new_coord = 't' + (inv(cover.coord).x + data.dx / COORD.x * paper._viewBox[2]) + ',' + ( inv(cover.coord).y - data.dy / COORD.y * paper._viewBox[3]);
+    cover.transform(new_coord);
   });
   
   socket.on('placeCover', function (data) {
     activeCovers[data.isbn].coord = {x: data.x, y: data.y};
-//    console.log(activeCovers[data.isbn].coord);
   });
   
   socket.on('update', function (activeStates) {
@@ -180,22 +179,19 @@ $(document).ready(function () {
   
   Raphael.st.draggable = function () {
     var me = this;
-    var lx = 0;
-    var ly = 0;
-    var ox = 0;
-    var oy = 0;
+    var _dx = 0;
+    var _dy = 0;
     moveFnc = function (dx, dy) {
-      console.log(dx, dy);
-      lx = ox + dx;
-      ly = oy + dy;
-      socket.emit('moveCover', {isbn: me.isbn, lx: (ox+dx) / paper._viewBox[2] * COORD.x, ly:  -(oy+dy) / paper._viewBox[3] * COORD.y});
+      socket.emit('moveCover', {isbn: me.isbn, dx: dx / paper._viewBox[2] * COORD.x, dy: -dy / paper._viewBox[3] * COORD.y});
+      _dx = dx;
+      _dy = dy;
     };
     startFnc = function () {
     };
     endFnc = function () {
-      var new_coord = {isbn: me.isbn, x: me.coord.x + (lx - ox) / paper._viewBox[2] * COORD.x, y:  me.coord.y - (ly - oy) / paper._viewBox[3] * COORD.y}
-      ox = lx;
-      oy = ly;
+      var new_coord = {isbn: me.isbn, x: me.coord.x + _dx / paper._viewBox[2] * COORD.x, y:  me.coord.y - _dy / paper._viewBox[3] * COORD.y}
+      _dx = 0;
+      _dy = 0;
       socket.emit('placeCover', new_coord);
       console.log(new_coord);
     };
