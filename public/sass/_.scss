@@ -26,10 +26,8 @@ p {
   margin-bottom: 1em;
 }
 
-$input-width: 160px;
-
 input {
-  width: $input-width;
+  width: 160px;
   position: absolute;
   z-index: 1;
   border: none;
@@ -77,25 +75,44 @@ footer {
 }
 
 #control-panel {
+  $search-form-width: 180px;
   @include fontsize(22);
   position: fixed;
   top: 0;
   left: 0;
-  .search {
-    width: 180px;
-    position: absolute;
-  }
-  #submit {
-    position: absolute;
-    left: 180px;
-  }
-  #save {
-    position: absolute;
-    left: 217px;
-  }
-  #test {
-    position: absolute;
-    left: 255px;
+  input {
+    display: inline;
+    position: relative;
+    width: $search-form-width;
   }
 }
 
+#modal-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  $room-form-width: 160px;
+  width: 32%;
+  margin: 0 auto;
+  padding: 1.4em;
+  border: 2px solid #aaa;
+  background: #fff;
+  z-index: 2;
+  p {
+    text-align: center;
+  }
+  .room-panel {
+    margin-bottom: 1.4em;
+    .room-form {
+      position: relative;
+      text-align: center;
+      margin: 0 auto;
+      input {
+        display: inline;
+        position: relative;
+        width: $room-form-width;
+        text-align: center;
+      }
+    }
+  }
+}

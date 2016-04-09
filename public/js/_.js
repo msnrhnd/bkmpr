@@ -1,29 +1,44 @@
 $(document).ready(function () {
   var socket = io.connect(location.origin);
+  var activeCovers = {};
+  var roomID;
   var paper = Raphael('main-panel');
   paper.setViewBox(0, 0, $(window).width(), $(window).height(), true);
   paper.setSize('100%', '100%');
-  var vert, horz, MG;
   var COORD = {x: 256, y: 256};
-  var activeCovers = {};
-  (function draw(viewbox) {
+  var WIDTH = paper._viewBox[2];
+  var HEIGHT = paper._viewBox[3];
+  var MG = Math.max(WIDTH / 48, HEIGHT / 48);
+  var VERT = paper.path('M' + WIDTH / 2 + ' ' + MG + 'L' + WIDTH / 2 + ' ' + (HEIGHT - MG)).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
+  var HORZ = paper.path('M' + MG + ' ' + HEIGHT / 2 + 'L' + (WIDTH - MG) + ' ' + HEIGHT / 2).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
+  var DURATION = 200;
+  $('#control-panel').hide();
+  $('#sign-in').click(function () {
+    roomId = $('.sign-in').val();
+    $('#control-panel').fadeIn(DURATION);
+    VERT.animate({opacity: 1}, DURATION);
+    HORZ.animate({opacity: 1}, DURATION);
+    $('#modal-panel').fadeOut(DURATION);
+    socket.emit('init', roomId);
+  });
+  $('#sign-out').click(function () {
+    socket.emit('sign-out', roomId);
+    $('#control-panel').fadeOut(DURATION);
+    $.each(activeCovers, function (k, v) {
+      activeCovers[k].remove();
+      delete activeCovers[k];
+    });
+    VERT.animate({opacity: 0}, DURATION);
+    HORZ.animate({opacity: 0}, DURATION);
+    $('#modal-panel').fadeIn(DURATION);
+  });
+  function drawTextBoxes (viewbox) {
+    var dir = ['e', 'w', 's', 'n'];
     var WIDTH = viewbox[2];
     var HEIGHT = viewbox[3];
-    MG = Math.max(WIDTH / 48, HEIGHT / 48);
-    vert = paper.path('M' + WIDTH / 2 + ' ' + MG + 'L' + WIDTH / 2 + ' ' + (HEIGHT - MG)).attr({
-      'arrow-end': 'block-wide-wide',
-      'arrow-start': 'block-wide-wide',
-      'stroke-width': 2
+    $.each(dir, function (k, v) {
+      $('#main-panel').append($('<input>').attr({id: v, type: 'text', value: ''}).addClass('axis'));
     });
-    horz = paper.path('M' + MG + ' ' + HEIGHT / 2 + 'L' + (WIDTH - MG) + ' ' + HEIGHT / 2).attr({
-      'arrow-end': 'block-wide-wide',
-      'arrow-start': 'block-wide-wide',
-      'stroke-width': 2
-    });
-  })(paper._viewBox);
-  (function drawText(viewbox) {
-    var WIDTH = viewbox[2];
-    var HEIGHT = viewbox[3];
     $('footer').css({
       position: 'absolute',
       top: HEIGHT,
@@ -52,7 +67,8 @@ $(document).ready(function () {
       'left': 0
     });
     $('body').prepend($('<footer>MANGAMAP2 &copy; 2016 msnrhnd</footer>'));
-  }); //(paper._viewBox);
+  };
+//  drawTextBoxes(paper._viewBox);
   $(window).resize(function () {
     //テキストボックスの再描画
   });
@@ -67,11 +83,13 @@ $(document).ready(function () {
   Raphael.fn.setCover = function (src, title, isbn, coord) {
     function trimTitle16 (str) {
       var trimmed = str;
-      if (str.length > 16) {
+      if (trimmed.length > 16) {
         trimmed = str.slice(0, 15) + '…';
       }
-      var mid = Math.round(trimmed.length / 2);
-      trimmed = trimmed.slice(0, mid) + '\n' + trimmed.slice(mid, trimmed.length);
+      if (trimmed.length > 8) {
+        var mid = Math.round(trimmed.length / 2);
+        trimmed = trimmed.slice(0, mid) + '\n' + trimmed.slice(mid, trimmed.length);
+      }
       return trimmed;
     }
     var me = this;
@@ -103,12 +121,12 @@ $(document).ready(function () {
     return cover;
   }
 
-  $('#submit').click(function () {
+  $('#plus').click(function () {
     if ($('img').size() > 32) {
       message('Too much covers!', 'not-found');
     }
     else {
-      var isbn = $('.search').val().replace(/-/g, '');
+      var isbn = $('#search').val().replace(/-/g, '');
       if (!activeCovers.hasOwnProperty(isbn)) {
         socket.emit('getBook', isbn, {x: 0, y: 0});
       }
@@ -116,10 +134,10 @@ $(document).ready(function () {
     }
   });
 
-  $('#test').click(function () {
+  $('#files-o').click(function () {
     var books = ['9784758101509', '9784758101493', '9784758101486', '9784758101479', '9784758101462', '9784758101455'];
     $.each(books, function(i, val){
-      socket.emit('getBook', val, {x: 0, y: 0});
+      socket.emit('getBook', roomId, val, {x: 0, y: 0});
     })
   });
   
@@ -135,20 +153,24 @@ $(document).ready(function () {
     return false;
   }
 
-  (function(isbns){
-    $.each(isbns, function(isbn){
-      socket.emit('getBook', isbn, coord);
-      setTimeout(this, 1000);
+  socket.on('init', function (activeStates_roomId) {
+    console.log(activeStates_roomId);
+    console.log(activeCovers);
+    $.each(activeStates_roomId, function (isbn, book) {
+      socket.emit('getBook', roomId, isbn, book.coord);
     });
   });
 
-  socket.on('init', function (activeStates) {
-    $.each(activeStates, function(isbn, book) {
-      console.log(activeStates);
-      socket.emit('getBook', isbn, book.coord);
-    });
+  socket.on('wait', function () {
+    $('button').prop('disabled', true);
+    $('input').prop('disabled', true);
   });
 
+  socket.on('go', function() {
+    $('button').prop('disabled', false);
+    $('input').prop('disabled', false);
+  });
+  
   socket.on('sendBook', function (data) {
     if (!activeCovers.hasOwnProperty(data.isbn)){
       var src = 'data:image/jpeg;base64,' + data.buffer;
@@ -163,8 +185,7 @@ $(document).ready(function () {
 
   socket.on('moveCover', function (data) {
     var cover = activeCovers[data.isbn];
-    var new_coord = 't' + (inv(cover.coord).x + data.dx / COORD.x * paper._viewBox[2]) + ',' + ( inv(cover.coord).y - data.dy / COORD.y * paper._viewBox[3]);
-    cover.transform(new_coord);
+    cover.transform('t' + (inv(cover.coord).x + data.dx / COORD.x * paper._viewBox[2]) + ',' + ( inv(cover.coord).y - data.dy / COORD.y * paper._viewBox[3]));
   });
   
   socket.on('placeCover', function (data) {
@@ -182,18 +203,19 @@ $(document).ready(function () {
     var _dx = 0;
     var _dy = 0;
     moveFnc = function (dx, dy) {
-      socket.emit('moveCover', {isbn: me.isbn, dx: dx / paper._viewBox[2] * COORD.x, dy: -dy / paper._viewBox[3] * COORD.y});
+      socket.emit('moveCover', roomId, {isbn: me.isbn, dx: Math.round(dx / paper._viewBox[2] * COORD.x), dy: Math.round(-dy / paper._viewBox[3] * COORD.y)});
       _dx = dx;
       _dy = dy;
     };
     startFnc = function () {
+      socket.emit('wait', roomId);
     };
     endFnc = function () {
-      var new_coord = {isbn: me.isbn, x: me.coord.x + _dx / paper._viewBox[2] * COORD.x, y:  me.coord.y - _dy / paper._viewBox[3] * COORD.y}
+      var new_coord = {isbn: me.isbn, x: Math.round(me.coord.x + _dx / paper._viewBox[2] * COORD.x), y: Math.round(me.coord.y - _dy / paper._viewBox[3] * COORD.y)}
       _dx = 0;
       _dy = 0;
-      socket.emit('placeCover', new_coord);
-      console.log(new_coord);
+      socket.emit('placeCover', roomId, new_coord);
+      socket.emit('go', roomId);
     };
     this.drag(moveFnc, startFnc, endFnc);
   };

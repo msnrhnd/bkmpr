@@ -40,7 +40,7 @@ function trimTitle32 (str) {
 
 function trimCoord (coord) {
   for (k in coord) {
-    coord[k] = Math.min( Math.max(coord[k], -128), 128);
+    coord[k] = Math.round(Math.min( Math.max(coord[k], -128), 128));
   }
   return coord;
 }
@@ -53,13 +53,37 @@ try {
   var activeStates = {};
 }
 
-io.sockets.on('connection', function (socket) {
+var chat = io.sockets.on('connection', function (socket) {
   console.log('connected');
+  socket.emit('roomIds');
+
+  socket.on('init', function (roomId) {
+    socket.set('room', roomId);
+    socket.join(roomId);
+    if(activeStates.hasOwnProperty(roomId)){
+      chat.to(roomId).emit('init', activeStates[roomId]);
+    } else {
+      activeStates[roomId] = {};
+    }
+  })
+  
+  socket.on('sign-out', function (roomId) {
+    socket.leave(roomId);
+  });
+  
   socket.on('disconnect', function (socket) {
     console.log('disconnected');
   });
-  socket.emit('init', activeStates);
-  socket.on('getBook', function (isbn, coord) {
+  
+  socket.on('wait', function (roomId) {
+    chat.to(roomId).emit('wait');
+  })
+
+  socket.on('go', function (roomId) {
+    chat.to(roomId).emit('go');
+  })
+
+  socket.on('getBook', function (roomId, isbn, coord) {
     async.waterfall([
       function (callback) {
         var title = imageURL = '';
@@ -67,9 +91,9 @@ io.sockets.on('connection', function (socket) {
           'applicationId': '1072038232996204187',
           'isbnjan': isbn
         }
-        if (activeStates.hasOwnProperty(isbn)) {
-          title = activeStates[isbn].title;
-          imageURL = activeStates[isbn].imageURL;
+        if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].hasOwnProperty(isbn)) {
+          title = activeStates[roomId][isbn].title;
+          imageURL = activeStates[roomId][isbn].imageURL;
           callback(null, isbn, imageURL, title);
         } else {
           https.get(rakuten_url + querystring.stringify(par), function (res) {
@@ -83,10 +107,10 @@ io.sockets.on('connection', function (socket) {
                 var item = response.Items[0].Item;
                 title = trimTitle32(item.title);
                 imageURL = item.mediumImageUrl;
-                activeStates[isbn] = {};
-                activeStates[isbn].title = title;
-                activeStates[isbn].imageURL = imageURL;
-                activeStates[isbn].coord = coord;
+                activeStates[roomId][isbn] = {};
+                activeStates[roomId][isbn].title = title;
+                activeStates[roomId][isbn].imageURL = imageURL;
+                activeStates[roomId][isbn].coord = trimCoord(coord);
                 fs.writeFileSync(infoPath, JSON.stringify(activeStates));
                 setTimeout(callback(null, isbn, imageURL, title), 1000);
               }
@@ -135,31 +159,24 @@ io.sockets.on('connection', function (socket) {
       }
     ], function (err, sendBook) {
       if (err) console.log(err.message);
-      socket.emit('sendBook', sendBook);
-      socket.broadcast.emit('sendBook', sendBook);
+      chat.to(roomId).emit('sendBook', sendBook);
     });
   });
-  
-  socket.on('removeCover', function (isbn) {
-    delete activeStates[isbn];
-    socket.emit('removeCover', isbn);
-    socket.broadcast.emit('removeCover', isbn);
+
+  socket.on('removeCover', function (roomId, isbn) {
+    delete activeStates[roomId][isbn];
+    chat.to(roomId).emit('removeCover', isbn);
     fs.writeFileSync(infoPath, JSON.stringify(activeStates));
   });
   
-  socket.on('moveCover', function (data) {
-    socket.emit('moveCover', data);
-    socket.broadcast.emit('moveCover', data);
+  socket.on('moveCover', function (roomId, data) {
+    console.log(roomId, data);
+    chat.to(roomId).emit('moveCover', data);
   });
   
-  socket.on('placeCover', function (data) {
-    activeStates[data.isbn].coord = trimCoord({x: data.x, y: data.y});
+  socket.on('placeCover', function (roomId, data) {
+    activeStates[roomId][data.isbn].coord = trimCoord({x: data.x, y: data.y});
     fs.writeFileSync(infoPath, JSON.stringify(activeStates));
-    socket.emit('placeCover', data);
-    socket.broadcast.emit('placeCover', data);
-  });
-  
-  socket.on('update', function (data) {
-    socket.broadcast.emit('update', data);
+    chat.to(roomId).emit('placeCover', data);
   });
 });

@@ -1,17 +1,20 @@
 <% include header %>
-
 <div id="main-panel">
-  <input type="text" id="n" class="axis" value="">
-  <input type="text" id="s" class="axis" value="">
-  <input type="text" id="e" class="axis" value="">
-  <input type="text" id="w" class="axis" value="">
 </div>
 <div id="control-panel">
-  <input type="text" class="form-control search" value="9784758101509" placeholder="ISBN13" maxlength="32">
-  <button id="submit" class="btn btn-default"><i class="fa fa-plus"></i></button>
+  <input id="search" type="text" class="form-control" val="9784758101509" placeholder="ISBN13" maxlength="32">
+  <button id="plus" class="btn btn-default"><i class="fa fa-plus"></i></button>
   <button id="save" class="btn btn-default"><i class="fa fa-save"></i></button>
-  <button id="test" class="btn btn-default"><i class="fa fa-files-o"></i></button>
-<!--  <button id="reset" class="btn btn-default"><i class="fa fa-eraser"></i></button> -->
-
-</div><!-- #control-panel -->
-
+  <button id="files-o" class="btn btn-default"><i class="fa fa-files-o"></i></button>
+  <button id="sign-out" class="btn btn-default"><i class="fa fa-sign-out"></i></button>
+</div>
+<div id="modal-panel">
+  <div class="room-panel">
+  <p>Create new room</p>
+    <div class="room-form">
+    <input id="room" type="text" value="room-test" class="form-control sign-in" maxlength: 16><button id="sign-in" class="btn btn-default"><i class="fa fa-sign-in"></i></button></div>
+    </div>
+  <div>
+  <p>Select from exisiting room</p>
+  </div>
+</div><!-- modal-panel -->
