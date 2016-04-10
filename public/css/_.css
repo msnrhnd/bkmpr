@@ -8941,12 +8941,11 @@ footer {
 }
 /* line 83, ../sass/_.scss */
 #control-panel input {
-  display: inline;
   position: relative;
-  width: 180px;
+  width: 154px;
 }
 
-/* line 90, ../sass/_.scss */
+/* line 89, ../sass/_.scss */
 #modal-panel {
   position: fixed;
   width: 48%;
@@ -8956,24 +8955,24 @@ footer {
   background: #fff;
   z-index: 2;
 }
-/* line 98, ../sass/_.scss */
+/* line 97, ../sass/_.scss */
 #modal-panel p {
   text-align: center;
 }
-/* line 101, ../sass/_.scss */
-#modal-panel .room-panel {
+/* line 100, ../sass/_.scss */
+#modal-panel .create-room {
   margin-bottom: 1.4em;
 }
-/* line 103, ../sass/_.scss */
-#modal-panel .room-panel .room-form {
+/* line 102, ../sass/_.scss */
+#modal-panel .create-room .room-form {
   position: relative;
   text-align: center;
   margin: 0 auto;
 }
-/* line 107, ../sass/_.scss */
-#modal-panel .room-panel .room-form input {
-  display: inline;
+/* line 106, ../sass/_.scss */
+#modal-panel .create-room .room-form #room {
   position: relative;
-  width: 80%;
+  width: 60%;
   text-align: center;
+  margin: 0 auto;
 }

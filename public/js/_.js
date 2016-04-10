@@ -1,7 +1,7 @@
 $(document).ready(function () {
   var socket = io.connect(location.origin);
   var activeCovers = {};
-  var roomID;
+  var roomId;
   var active = true;
   var paper = Raphael('main-panel');
   paper.setViewBox(0, 0, $(window).width(), $(window).height(), true);
@@ -36,6 +36,13 @@ $(document).ready(function () {
     $.each(activeCovers, function (k, v) {
       activeCovers[k].remove();
       delete activeCovers[k];
+    });
+    socket.emit('activeRooms', function (activeRooms) {
+      console.log(activeRooms);
+      $.each(activeRooms, function (room) {
+        console.log(room);
+        $('#active-rooms').append(room);
+      });
     });
     VERT.animate({opacity: 0}, DURATION);
     HORZ.animate({opacity: 0}, DURATION);
@@ -162,7 +169,7 @@ $(document).ready(function () {
     });
     return false;
   }
-
+  
   socket.on('init', function (activeStates_roomId) {
     $.each(activeStates_roomId, function (isbn, book) {
       socket.emit('getBook', roomId, isbn, book.coord);

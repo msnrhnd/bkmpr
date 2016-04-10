@@ -52,11 +52,18 @@ try {
 } catch (err) {
   var activeStates = {};
 }
+var activeRooms = [];
+for (var roomId in activeStates) {
+  activeRooms.push(roomId);
+}
 
 var chat = io.sockets.on('connection', function (socket) {
   console.log('connected');
-  socket.emit('roomIds');
 
+  socket.on('activeRooms', function() {
+    socket.emit('activeRooms', activeRooms);
+  });
+  
   socket.on('init', function (roomId) {
     socket.set('room', roomId);
     socket.join(roomId);
@@ -64,6 +71,7 @@ var chat = io.sockets.on('connection', function (socket) {
       chat.to(roomId).emit('init', activeStates[roomId]);
     } else {
       activeStates[roomId] = {};
+      activeRooms.push(roomId);
     }
   })
   
@@ -130,11 +138,13 @@ var chat = io.sockets.on('connection', function (socket) {
             res.setEncoding('binary');
             res.on('data', function (chunk) {
               imagedata += chunk;
+              chat.to(roomId).emit('wait');
             });
             res.on('end', function () {
               fs.writeFile(imagePath, imagedata, 'binary', function (err) {
                 if (err) throw err;
                 console.log('File saved.');
+                chat.to(roomId).emit('go');
                 setTimeout(callback(null, isbn, imagePath, title), 1000);
               });
             })
