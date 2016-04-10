@@ -2,6 +2,7 @@ $(document).ready(function () {
   var socket = io.connect(location.origin);
   var activeCovers = {};
   var roomID;
+  var active = true;
   var paper = Raphael('main-panel');
   paper.setViewBox(0, 0, $(window).width(), $(window).height(), true);
   paper.setSize('100%', '100%');
@@ -12,8 +13,15 @@ $(document).ready(function () {
   var VERT = paper.path('M' + WIDTH / 2 + ' ' + MG + 'L' + WIDTH / 2 + ' ' + (HEIGHT - MG)).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
   var HORZ = paper.path('M' + MG + ' ' + HEIGHT / 2 + 'L' + (WIDTH - MG) + ' ' + HEIGHT / 2).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
   var DURATION = 200;
+  function modalPanel () {
+    var w = $('#modal-panel').outerWidth();
+    var h = $('#modal-panel').outerHeight();
+    $('#modal-panel').css({left: $(window).width()/2 - w/2, top: $(window).height()/2 - h/2});
+  };
+  modalPanel();
   $('#control-panel').hide();
   $('#sign-in').click(function () {
+    active = true;
     roomId = $('.sign-in').val();
     $('#control-panel').fadeIn(DURATION);
     VERT.animate({opacity: 1}, DURATION);
@@ -22,6 +30,7 @@ $(document).ready(function () {
     socket.emit('init', roomId);
   });
   $('#sign-out').click(function () {
+    active = false;
     socket.emit('sign-out', roomId);
     $('#control-panel').fadeOut(DURATION);
     $.each(activeCovers, function (k, v) {
@@ -70,6 +79,7 @@ $(document).ready(function () {
   };
 //  drawTextBoxes(paper._viewBox);
   $(window).resize(function () {
+    modalPanel();
     //テキストボックスの再描画
   });
   
@@ -128,7 +138,7 @@ $(document).ready(function () {
     else {
       var isbn = $('#search').val().replace(/-/g, '');
       if (!activeCovers.hasOwnProperty(isbn)) {
-        socket.emit('getBook', isbn, {x: 0, y: 0});
+        socket.emit('getBook', roomId, isbn, {x: 0, y: 0});
       }
       $('.search').val('');
     }
@@ -154,8 +164,6 @@ $(document).ready(function () {
   }
 
   socket.on('init', function (activeStates_roomId) {
-    console.log(activeStates_roomId);
-    console.log(activeCovers);
     $.each(activeStates_roomId, function (isbn, book) {
       socket.emit('getBook', roomId, isbn, book.coord);
     });
@@ -172,7 +180,7 @@ $(document).ready(function () {
   });
   
   socket.on('sendBook', function (data) {
-    if (!activeCovers.hasOwnProperty(data.isbn)){
+    if (!activeCovers.hasOwnProperty(data.isbn) && active){
       var src = 'data:image/jpeg;base64,' + data.buffer;
       var new_cover = paper.setCover(src, data.title, data.isbn, data.coord);
       activeCovers[data.isbn] = new_cover;
@@ -180,7 +188,10 @@ $(document).ready(function () {
   });
 
   socket.on('removeCover', function (isbn) {
-    activeCovers[isbn].remove();
+    if (activeCovers.hasOwnProperty(isbn)){
+      activeCovers[isbn].remove();
+      delete activeCovers[isbn];
+    }
   });
 
   socket.on('moveCover', function (data) {
@@ -190,9 +201,6 @@ $(document).ready(function () {
   
   socket.on('placeCover', function (data) {
     activeCovers[data.isbn].coord = {x: data.x, y: data.y};
-  });
-  
-  socket.on('update', function (activeStates) {
   });
 
   Raphael.st.undraggable = function () {
@@ -223,12 +231,8 @@ $(document).ready(function () {
   function setMouseHandlers(set) {
     set.draggable();
     set.dblclick(function () {
-      socket.emit('removeCover', set.isbn);
+      socket.emit('removeCover', roomId, set.isbn);
     });
-  }
-  
-  function update() {
-    socket.emit('update', activeStates);
   }
   
   function map(origin) {

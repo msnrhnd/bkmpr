@@ -164,19 +164,24 @@ var chat = io.sockets.on('connection', function (socket) {
   });
 
   socket.on('removeCover', function (roomId, isbn) {
-    delete activeStates[roomId][isbn];
+    console.log(roomId, isbn);
+    console.log('now', activeStates);
+    if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].hasOwnProperty(isbn)) {
+      delete activeStates[roomId][isbn];
+    }
     chat.to(roomId).emit('removeCover', isbn);
     fs.writeFileSync(infoPath, JSON.stringify(activeStates));
   });
   
   socket.on('moveCover', function (roomId, data) {
-    console.log(roomId, data);
     chat.to(roomId).emit('moveCover', data);
   });
   
   socket.on('placeCover', function (roomId, data) {
+    if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].hasOwnProperty(data.isbn)) {
     activeStates[roomId][data.isbn].coord = trimCoord({x: data.x, y: data.y});
     fs.writeFileSync(infoPath, JSON.stringify(activeStates));
-    chat.to(roomId).emit('placeCover', data);
+      chat.to(roomId).emit('placeCover', data);
+    }
   });
 });

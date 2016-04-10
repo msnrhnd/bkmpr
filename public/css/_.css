@@ -8949,32 +8949,31 @@ footer {
 /* line 90, ../sass/_.scss */
 #modal-panel {
   position: fixed;
-  top: 0;
-  width: 32%;
+  width: 48%;
   margin: 0 auto;
   padding: 1.4em;
   border: 2px solid #aaa;
   background: #fff;
   z-index: 2;
 }
-/* line 100, ../sass/_.scss */
+/* line 98, ../sass/_.scss */
 #modal-panel p {
   text-align: center;
 }
-/* line 103, ../sass/_.scss */
+/* line 101, ../sass/_.scss */
 #modal-panel .room-panel {
   margin-bottom: 1.4em;
 }
-/* line 105, ../sass/_.scss */
+/* line 103, ../sass/_.scss */
 #modal-panel .room-panel .room-form {
   position: relative;
   text-align: center;
   margin: 0 auto;
 }
-/* line 109, ../sass/_.scss */
+/* line 107, ../sass/_.scss */
 #modal-panel .room-panel .room-form input {
   display: inline;
   position: relative;
-  width: 160px;
+  width: 80%;
   text-align: center;
 }
