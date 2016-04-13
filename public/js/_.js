@@ -37,13 +37,15 @@ $(document).ready(function () {
       activeCovers[k].remove();
       delete activeCovers[k];
     });
-    socket.emit('activeRooms', function (activeRooms) {
+
+    socket.on('activeRooms', function (activeRooms) {
       console.log(activeRooms);
       $.each(activeRooms, function (room) {
         console.log(room);
         $('#active-rooms').append(room);
       });
     });
+    
     VERT.animate({opacity: 0}, DURATION);
     HORZ.animate({opacity: 0}, DURATION);
     $('#modal-panel').fadeIn(DURATION);
@@ -210,8 +212,9 @@ $(document).ready(function () {
     activeCovers[data.isbn].coord = {x: data.x, y: data.y};
   });
 
-  Raphael.st.undraggable = function () {
-  }
+  socket.on('emitLog', function (serverLog) {
+    console.log(serverLog);
+  });
   
   Raphael.st.draggable = function () {
     var me = this;
