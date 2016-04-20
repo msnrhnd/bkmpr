@@ -9,30 +9,37 @@ $(document).ready(function () {
   var COORD = {x: 256, y: 256};
   var WIDTH = paper._viewBox[2];
   var HEIGHT = paper._viewBox[3];
-  var MG = Math.max(WIDTH / 48, HEIGHT / 48);
-  var VERT = paper.path('M' + WIDTH / 2 + ' ' + MG + 'L' + WIDTH / 2 + ' ' + (HEIGHT - MG)).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
-  var HORZ = paper.path('M' + MG + ' ' + HEIGHT / 2 + 'L' + (WIDTH - MG) + ' ' + HEIGHT / 2).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
+  var UNIT = Math.sqrt(WIDTH * HEIGHT);
+  var VERT = paper.path('M' + WIDTH / 2 + ' ' + UNIT / 32 + 'L' + WIDTH / 2 + ' ' + (HEIGHT - UNIT/32)).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
+  var HORZ = paper.path('M' + UNIT / 32 + ' ' + HEIGHT / 2 + 'L' + (WIDTH - UNIT / 32) + ' ' + HEIGHT / 2).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
+  $.each(['e', 'w', 's', 'n'], function (k, v) {
+    $('#main-panel').append($('<input>').attr({id: v, type: 'text', value: ''}).addClass('axis'));
+  });
   var DURATION = 200;
   function modalPanel () {
     var w = $('#modal-panel').outerWidth();
     var h = $('#modal-panel').outerHeight();
-    $('#modal-panel').css({left: $(window).width()/2 - w/2, top: $(window).height()/2 - h/2});
+    $('#modal-panel').css({left: $(window).width() / 2 - w / 2, top: $(window).height() / 2 - h / 2});
   };
   modalPanel();
   $('#control-panel').hide();
+  $('.axis').hide();
   $('#sign-in').click(function () {
     active = true;
     roomId = $('.sign-in').val();
     $('#control-panel').fadeIn(DURATION);
+    $('.axis').fadeIn(DURATION);
     VERT.animate({opacity: 1}, DURATION);
     HORZ.animate({opacity: 1}, DURATION);
     $('#modal-panel').fadeOut(DURATION);
     socket.emit('init', roomId);
   });
+
   $('#sign-out').click(function () {
     active = false;
     socket.emit('sign-out', roomId);
     $('#control-panel').fadeOut(DURATION);
+    $('.axis').fadeOut(DURATION);
     $.each(activeCovers, function (k, v) {
       activeCovers[k].remove();
       delete activeCovers[k];
@@ -50,46 +57,21 @@ $(document).ready(function () {
     HORZ.animate({opacity: 0}, DURATION);
     $('#modal-panel').fadeIn(DURATION);
   });
-  function drawTextBoxes (viewbox) {
-    var dir = ['e', 'w', 's', 'n'];
-    var WIDTH = viewbox[2];
-    var HEIGHT = viewbox[3];
-    $.each(dir, function (k, v) {
-      $('#main-panel').append($('<input>').attr({id: v, type: 'text', value: ''}).addClass('axis'));
-    });
-    $('footer').css({
-      position: 'absolute',
-      top: HEIGHT,
-      left: WIDTH,
-      'font-size': '11px'
-    });
-    $('#n').css({
-      'top': 0,
-      'left': '50%' // - 80
-    });
-    $('#s').css({
-      'top': '100%',
-      //HEIGHT - MG - 2,
-      'left': '50%' //WIDTH / 2 - 80
-    });
-    $('#e').css({
-      'top': '50%',
-      //HEIGHT / 2,
-      'left': '100%',
-      //WIDTH - 160
-      'text-align': 'right'
-    });
-    $('#w').css({
-      'top': '50%',
-      //HEIGHT / 2,
-      'left': 0
-    });
-    $('body').prepend($('<footer>MANGAMAP2 &copy; 2016 msnrhnd</footer>'));
+
+  function drawTextBoxes (pw) {
+    $('.axis').css({width: UNIT * pw / 4, fontSize: UNIT * pw / 48});
+    $('footer').css({position: 'absolute', top: (HEIGHT - UNIT / 32)* pw, fontSize: UNIT / 64 * pw});
+    $('#n').css({top: 0, left: (WIDTH / 2 - UNIT / 8) * pw});
+    $('#s').css({top: (HEIGHT - UNIT / 32) * pw, left: (WIDTH / 2 - UNIT / 8) * pw});
+    $('#e').css({top: HEIGHT * pw / 2, left: (WIDTH - UNIT / 4) * pw, textAlign: 'right'});
+    $('#w').css({top: HEIGHT * pw / 2, left: 0});
   };
-//  drawTextBoxes(paper._viewBox);
+  drawTextBoxes(1);
+  
   $(window).resize(function () {
+    var pw = $(window).width() / WIDTH;
     modalPanel();
-    //テキストボックスの再描画
+    drawTextBoxes(pw);
   });
   
   $('.axis').change(function () {
@@ -118,10 +100,9 @@ $(document).ready(function () {
     var img = new Image();
     img.src = src;
     img.onload = function () {
-      var u = Math.sqrt(me._viewBox[2] * me._viewBox[3]);
-      var w = u / 8;
+      var w = UNIT / 8;
       var h = w * img.height / img.width;
-      var margin = u / 96;
+      var margin = UNIT / 96;
       cover.push(
         me.rect(- w / 2 - margin / 2, - h / 2 - margin / 2, w + margin, h + margin).attr({
           'stroke': 'black',
@@ -175,9 +156,22 @@ $(document).ready(function () {
   socket.on('init', function (activeStates_roomId) {
     $.each(activeStates_roomId, function (isbn, book) {
       socket.emit('getBook', roomId, isbn, book.coord);
+      $.each(['e', 'w', 's', 'n'], function (k, v) {
+        if (activeStates_roomId.hasOwnProperty(v)) {
+          $('#' + v).val(activeStates_roomId[v]).css('border', 'none');
+        }
+      });
     });
   });
 
+  $('.axis').change( function () {
+    socket.emit('axis', roomId, this.id, $(this).val());
+  });
+
+  socket.on('axis', function (id, val) {
+    $('#' + id).val(val);
+  });
+  
   socket.on('wait', function () {
     $('button').prop('disabled', true);
     $('input').prop('disabled', true);

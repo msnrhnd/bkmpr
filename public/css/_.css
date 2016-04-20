@@ -8872,7 +8872,6 @@ p {
 
 /* line 29, ../sass/_.scss */
 input {
-  width: 160px;
   position: absolute;
   z-index: 1;
   border: none;
@@ -8923,15 +8922,6 @@ message.duplicated {
 }
 
 /* line 70, ../sass/_.scss */
-footer {
-  font-size: 14px;
-  font-size: 0.875rem;
-  position: absolute;
-  right: 0;
-  bottom: 0;
-}
-
-/* line 77, ../sass/_.scss */
 #control-panel {
   font-size: 22px;
   font-size: 1.375rem;
@@ -8939,13 +8929,13 @@ footer {
   top: 0;
   left: 0;
 }
-/* line 83, ../sass/_.scss */
+/* line 76, ../sass/_.scss */
 #control-panel input {
   position: relative;
   width: 154px;
 }
 
-/* line 89, ../sass/_.scss */
+/* line 82, ../sass/_.scss */
 #modal-panel {
   position: fixed;
   width: 48%;
@@ -8955,21 +8945,21 @@ footer {
   background: #fff;
   z-index: 2;
 }
-/* line 97, ../sass/_.scss */
+/* line 90, ../sass/_.scss */
 #modal-panel p {
   text-align: center;
 }
-/* line 100, ../sass/_.scss */
+/* line 93, ../sass/_.scss */
 #modal-panel .create-room {
   margin-bottom: 1.4em;
 }
-/* line 102, ../sass/_.scss */
+/* line 95, ../sass/_.scss */
 #modal-panel .create-room .room-form {
   position: relative;
   text-align: center;
   margin: 0 auto;
 }
-/* line 106, ../sass/_.scss */
+/* line 99, ../sass/_.scss */
 #modal-panel .create-room .room-form #room {
   position: relative;
   width: 60%;

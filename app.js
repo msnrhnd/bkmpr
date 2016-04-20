@@ -14,7 +14,7 @@ var express = require('express'),
 var port = Number(process.env.PORT || 8080);
 server.listen(port);
 
-app.configure(function () {
+app.configure( function () {
   app.set('views', path.join(__dirname, 'views'));
   app.set('view engine', 'ejs');
   app.use(express.favicon());
@@ -58,12 +58,12 @@ for (var roomId in activeStates) {
   activeRooms.push(roomId);
 }
 
-var chat = io.sockets.on('connection', function (socket) {
+var chat = io.sockets.on('connection', function (client) {
   console.log('connected');
-  socket.emit('activeRooms', activeRooms);
-  socket.on('init', function (roomId) {
-    socket.set('room', roomId);
-    socket.join(roomId);
+  client.emit('activeRooms', activeRooms);
+  client.on('init', function (roomId) {
+    client.set('room', roomId);
+    client.join(roomId);
     if(activeStates.hasOwnProperty(roomId)){
       chat.to(roomId).emit('init', activeStates[roomId]);
     } else {
@@ -72,23 +72,31 @@ var chat = io.sockets.on('connection', function (socket) {
     }
   })
   
-  socket.on('sign-out', function (roomId) {
-    socket.leave(roomId);
+  client.on('sign-out', function (roomId) {
+    console.log('sign-out');
+    client.leave(roomId);
   });
   
-  socket.on('disconnect', function (socket) {
+  client.on('disconnect', function () {
     console.log('disconnected');
+    client.leave(roomId);
   });
   
-  socket.on('wait', function (roomId) {
+  client.on('wait', function (roomId) {
     chat.to(roomId).emit('wait');
   })
 
-  socket.on('go', function (roomId) {
+  client.on('go', function (roomId) {
     chat.to(roomId).emit('go');
   })
 
-  socket.on('getBook', function (roomId, isbn, coord) {
+  client.on('axis', function(roomId, id, val) {
+    activeStates[roomId][id] = val;
+    fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
+    chat.to(roomId).emit('axis', id, val);
+  });
+  
+  client.on('getBook', function (roomId, isbn, coord) {
     async.waterfall([
       function (callback) {
         var title = imageURL = '';
@@ -99,10 +107,10 @@ var chat = io.sockets.on('connection', function (socket) {
         if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].hasOwnProperty(isbn)) {
           title = activeStates[roomId][isbn].title;
           imageURL = activeStates[roomId][isbn].imageURL;
-          socket.emit('emitLog', 'data from tmp');
+//          client.emit('emitLog', 'data from tmp');
           callback(null, isbn, imageURL, title);
         } else {
-          socket.emit('emitLog', 'data from rakuten');
+//          client.emit('emitLog', 'data from rakuten');
           https.get(rakuten_url + querystring.stringify(par), function (res) {
             var body = '';
             res.on('data', function (chunk) {
@@ -110,6 +118,7 @@ var chat = io.sockets.on('connection', function (socket) {
             });
             res.on('end', function () {
               var response = JSON.parse(body);
+//              client.emit('emitLog', response);
               try {
                 var item = response.Items[0].Item;
                 title = trimTitle32(item.title);
@@ -122,7 +131,7 @@ var chat = io.sockets.on('connection', function (socket) {
                 callback(null, isbn, imageURL, title);
               }
               catch (err) {
-                socket.emit('emitLog', err.message);
+//                client.emit('emitLog', err.message);
                 console.log(err.message);
               }
             });
@@ -133,7 +142,7 @@ var chat = io.sockets.on('connection', function (socket) {
         var imagePath = path.join('tmp', isbn + '.jpg');
         if (!fs.existsSync(imagePath)) {
           var outFile = fs.createWriteStream(imagePath);
-          socket.emit('emitLog', 'image data from rakuten');
+//          client.emit('emitLog', 'image data from rakuten');
           http.get(imageURL, function (res) {
             var imagedata = ''
             res.setEncoding('binary');
@@ -152,7 +161,7 @@ var chat = io.sockets.on('connection', function (socket) {
           });
         }
         else {
-          socket.emit('emitLog', 'image data from tmp');
+//          client.emit('emitLog', 'image data from tmp');
           callback(null, isbn, imagePath, title);
         };
       },
@@ -172,7 +181,7 @@ var chat = io.sockets.on('connection', function (socket) {
       });
   });
   
-  socket.on('removeCover', function (roomId, isbn) {
+  client.on('removeCover', function (roomId, isbn) {
     console.log(roomId, isbn);
     console.log('now', activeStates);
     if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].hasOwnProperty(isbn)) {
@@ -182,37 +191,66 @@ var chat = io.sockets.on('connection', function (socket) {
     fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
   });
   
-  socket.on('moveCover', function (roomId, data) {
+  client.on('moveCover', function (roomId, data) {
     chat.to(roomId).emit('moveCover', data);
   });
   
-  socket.on('placeCover', function (roomId, data) {
+  client.on('placeCover', function (roomId, data) {
     if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].hasOwnProperty(data.isbn)) {
-    activeStates[roomId][data.isbn].coord = trimCoord({x: data.x, y: data.y});
-    fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
+      activeStates[roomId][data.isbn].coord = trimCoord({x: data.x, y: data.y});
+      fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
       chat.to(roomId).emit('placeCover', data);
     }
   });
 });
 
-const sleep = (ms) => {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-};
+/*
+var promise = Promise.resolve('9784088806488');
 
-co(function*() {
-  for (var i = 0; i<5; i++) {
-    console.log(i);
-    yield sleep(1000);
+promise = promise.then( function fetchURL (isbn) {
+  var par = {
+    'applicationId': '1072038232996204187',
+    'isbnjan': isbn
   }
+  https.get(rakuten_url + querystring.stringify(par), function (res) {
+    var body = '';
+    res.on('data', function (chunk) {
+      body += chunk;
+    });
+    res.on('end', function () {
+      var response = JSON.parse(body);
+      var promise = new Promise(function(resolve, reject){
+        if (response.hasOwnProperty('Items')) {
+          console.log(item);
+          resolve(response.Items[0].Item);
+        } else if (response.hasOwnProperty('error')) {
+          reject(response.error);
+        }
+      });
+      return promise;
+    });
+  });
 });
 
+promise = promise.then( function getImageURL (item) {
+  console.log('imageURL', item);
+  var title = trimTitle32(item.title);
+  var imageURL = item.mediumImageUrl;
+  var imagePath = path.join('tmp', item.isbn + '.jpg');
+  http.get(imageURL, function (res) {
+    var imagedata = ''
+    res.setEncoding('binary');
+    res.on('data', function (chunk) {
+      imagedata += chunk;
+    });
+    res.on('end', function () {
+      fs.writeFile(imagePath, imagedata, 'binary', function (err) {
+        if (err) return Promise.reject(err.message);
+        console.log('File saved.');
+        return Promise.resolve(item.imagePath);
+      });
+    });
+  });
+});
 
-
-
-
-
-
-
-
+*/
