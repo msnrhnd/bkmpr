@@ -29,7 +29,8 @@ app.configure('development', function () {
 
 app.get('/', routes.index);
 
-var ROOM_MAX = 4;
+var ROOM_MAX = 6;
+var COVERS_MAX = 4;
 function writeActiveState () {
   fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
 }
@@ -125,14 +126,21 @@ var chat = io.sockets.on('connection', function (client) {
     client.emit('axis', dir, val);
     client.broadcast.emit('axis', dir, val);
   });
-    
+
   client.on('getBook', function (roomId, isbn, coord) {
     var book;
     var imagePath = path.join('tmp', isbn + '.jpg');
     if (activeStates[roomId].covers.hasOwnProperty(isbn)) {
       book = activeStates[roomId].covers[isbn];
     }
-    Promise.resolve(isbn).then(function (resolve, reject) {
+
+    Promise.resolve(isbn).then(function(resolve, reject){
+      if (Object.keys(activeStates[roomId].covers).length < COVERS_MAX) {
+        return isbn;
+      } else {
+        return false;
+      }
+    }).then(function (resolve, reject) {
       if (!book) {
         book = fetchUrl(resolve)
       }
@@ -148,7 +156,7 @@ var chat = io.sockets.on('connection', function (client) {
     }).then(function (resolve, reject) {
       return saveBook(resolve);
     });
-    
+
     function fetchUrl() {
       return new Promise(function (resolve, reject) {
         var par = {
@@ -218,6 +226,7 @@ var chat = io.sockets.on('connection', function (client) {
         activeStates[roomId].covers[isbn].url = cover.url;
         activeStates[roomId].covers[isbn].coord = coord;
         writeActiveState();
+        resolve(true);
       });
     }
   });

@@ -30,6 +30,7 @@ $(document).ready(function () {
         $('#axis .' + roomId).append($('<input/>').attr({type: 'text', maxlength: '16'}).addClass(dir));
       }
     }
+    setTextBoxes(pw);
     $('#axis .' + thisRoomId).fadeIn(DURATION);
     $('#control-panel').fadeIn(DURATION);
     VERT.animate({opacity: 1}, DURATION);
@@ -48,7 +49,7 @@ $(document).ready(function () {
     return text.replace(/[^a-zA-Z0-9_]/g, '');
   }
   
-  $('#room').on('keyup', function () {
+  $(document).on('keyup', '#room', function () {
     $('#room').val(escapeText($('#room').val()));
     $('#sign-in').prop('disabled', !Boolean($('#room').val()));
   });
@@ -59,12 +60,12 @@ $(document).ready(function () {
     }
   });
 
-  $(document).on('click', '.enter-room', function () {
-    signIn($(this).text());
+  $(document).on('click', '.enter-room', function (e) {
+    signIn($(e.currentTarget).text());
   });
 
-  $(document).on('click', '.remove-room', function () {
-    socket.emit('removeRoom', $(this).siblings('.enter-room').text());
+  $(document).on('click', '.remove-room', function (e) {
+    socket.emit('removeRoom', $(e.currentTarget).siblings('.enter-room').text());
   });
   
   $('#sign-out').click(function () {
@@ -110,7 +111,6 @@ $(document).ready(function () {
     $('#axis .e').css({top: HEIGHT * pw / 2, left: (WIDTH - UNIT / 4) * pw, textAlign: 'right'});
     $('#axis .w').css({top: HEIGHT * pw / 2, left: 0});
   };
-  setTextBoxes(1);
 
   function cssTextBoxes ($input) {
     if ($input.val()) {
@@ -126,12 +126,12 @@ $(document).ready(function () {
     setTextBoxes(pw);
   });
 
-  $('#axis input').on('keyup', function () {
-    var escaped = $(this).val().replace(/["' (){}\.,\[\]]/g, '');
-    $(this).val(escaped);
-  }).on('change', function () {
-    socket.emit('axis', thisRoomId, this.className.split(' ')[0], $(this).val());
-    cssTextBoxes($(this));
+  $(document).on('keyup', '#axis input', function (e) {
+    var escaped = $(e.currentTarget).val().replace(/["' (){}\.,\[\]]/g, '');
+    $(e.currentTarget).val(escaped);
+  }).on('change', '#axis input', function (e) {
+    socket.emit('axis', thisRoomId, e.currentTarget.className.split(' ')[0], $(e.currentTarget).val());
+    cssTextBoxes($(e.currentTarget));
   });
 
   Raphael.fn.setCover = function (src, title, isbn, coord) {
@@ -207,7 +207,6 @@ $(document).ready(function () {
   }
   
   socket.on('signIn', function (activeStates_roomId) {
-    setTextBoxes(pw);
     $.each(activeStates_roomId.covers, function (isbn, book) {
       socket.emit('getBook', thisRoomId, isbn, book.coord);
     });
