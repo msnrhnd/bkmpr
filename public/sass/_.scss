@@ -27,22 +27,21 @@ p {
 }
 
 input {
-//  width: 160px;
   position: absolute;
   z-index: 1;
   border: none;
   border-bottom: 1px solid black;
   background-color: transparent;
-  &#n {
+  &.n {
     text-align: center;
   }
-  &#s {
+  &.s {
     text-align: center;
   }
-  &#e {
+  &.e {
     text-align: right;
   }
-  &#w {
+  &.w {
     text-align: left;
   }
 }

@@ -1,9 +1,11 @@
 <% include header %>
 <div id="main-panel">
+<div id="axis">
+</div>
 </div>
 <div id="control-panel">
   <div class="form-inline">
-    <input id="search" type="text" class="form-control" val="9784758101509" placeholder="ISBN13" maxlength="32"><button id="plus" class="btn btn-default"><i class="fa fa-plus"></i></button><button id="save" class="btn btn-default"><i class="fa fa-save"></i></button><button id="files-o" class="btn btn-default"><i class="fa fa-files-o"></i></button><button id="sign-out" class="btn btn-default"><i class="fa fa-sign-out"></i></button>
+    <input id="search" type="text" class="form-control" value="9784088903989" placeholder="ISBN13" maxlength="32"><button id="plus" class="btn btn-default"><i class="fa fa-plus"></i></button><button id="save" class="btn btn-default"><i class="fa fa-save"></i></button><button id="files-o" class="btn btn-default"><i class="fa fa-files-o"></i></button><button id="sign-out" class="btn btn-default"><i class="fa fa-sign-out"></i></button>
   </div>
 </div>
 <div id="modal-panel">
@@ -11,13 +13,13 @@
     <p>Create new room</p>
     <div class="room-form">
       <div class="form-inline">
-        <input id="room" type="text" value="room-test" class="form-control sign-in" maxlength: 16><button id="sign-in" class="btn btn-default"><i class="fa fa-sign-in"></i></button>
+        <input id="room" type="text" value="" class="form-control" maxlength="16"><button id="sign-in" class="btn btn-default"><i class="fa fa-sign-in"></i></button>
       </div>
     </div><!-- room-form -->
   </div><!-- create-room -->
-  <div class="room-exist">
+  <div>
     <p>Select from exisiting room</p>
-    <div id="active-rooms"></div>
+    <div id="existing-rooms"></div>
   </div>
 </div><!-- modal-panel -->
 <footer>BKMPR &copy; 2016 msnrhnd</footer>

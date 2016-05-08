@@ -1,8 +1,7 @@
 $(document).ready(function () {
   var socket = io.connect(location.origin);
   var activeCovers = {};
-  var roomId;
-  var active = true;
+  var thisRoomId;
   var paper = Raphael('main-panel');
   paper.setViewBox(0, 0, $(window).width(), $(window).height(), true);
   paper.setSize('100%', '100%');
@@ -10,12 +9,10 @@ $(document).ready(function () {
   var WIDTH = paper._viewBox[2];
   var HEIGHT = paper._viewBox[3];
   var UNIT = Math.sqrt(WIDTH * HEIGHT);
-  var VERT = paper.path('M' + WIDTH / 2 + ' ' + UNIT / 32 + 'L' + WIDTH / 2 + ' ' + (HEIGHT - UNIT/32)).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
+  var VERT = paper.path('M' + WIDTH / 2 + ' ' + UNIT / 32 + 'L' + WIDTH / 2 + ' ' + (HEIGHT - UNIT / 32)).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
   var HORZ = paper.path('M' + UNIT / 32 + ' ' + HEIGHT / 2 + 'L' + (WIDTH - UNIT / 32) + ' ' + HEIGHT / 2).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
-  $.each(['e', 'w', 's', 'n'], function (k, v) {
-    $('#main-panel').append($('<input>').attr({id: v, type: 'text', value: ''}).addClass('axis'));
-  });
   var DURATION = 200;
+  var pw = 1;
   function modalPanel () {
     var w = $('#modal-panel').outerWidth();
     var h = $('#modal-panel').outerHeight();
@@ -23,62 +20,118 @@ $(document).ready(function () {
   };
   modalPanel();
   $('#control-panel').hide();
-  $('.axis').hide();
-  $('#sign-in').click(function () {
-    active = true;
-    roomId = $('.sign-in').val();
+  $('#sign-in').prop('disabled', true);
+
+  function signIn(roomId) {
+    thisRoomId = roomId;
+    if (!$('#axis .' + roomId).length) {
+      $('#axis').append($('<div/>').addClass(roomId));
+      for (var dir of ['e', 'w', 's', 'n']) {
+        $('#axis .' + roomId).append($('<input/>').attr({type: 'text', maxlength: '16'}).addClass(dir));
+      }
+    }
+    $('#axis .' + thisRoomId).fadeIn(DURATION);
     $('#control-panel').fadeIn(DURATION);
-    $('.axis').fadeIn(DURATION);
     VERT.animate({opacity: 1}, DURATION);
     HORZ.animate({opacity: 1}, DURATION);
     $('#modal-panel').fadeOut(DURATION);
-    socket.emit('init', roomId);
+    socket.emit('signIn', thisRoomId);
+    history.pushState('', '', '?' + roomId);
+  }
+  
+  if (location.search.substring(1)) {
+    var encoded = encodeURIComponent(location.search.substring(1))
+    signIn(encoded);
+  }
+
+  function escapeText (text) {
+    return text.replace(/[^a-zA-Z0-9_]/g, '');
+  }
+  
+  $('#room').on('keyup', function () {
+    $('#room').val(escapeText($('#room').val()));
+    $('#sign-in').prop('disabled', !Boolean($('#room').val()));
   });
 
+  $('#sign-in').click(function () {
+    if ($('#room').val()) {
+      signIn($('#room').val());
+    }
+  });
+
+  $(document).on('click', '.enter-room', function () {
+    signIn($(this).text());
+  });
+
+  $(document).on('click', '.remove-room', function () {
+    socket.emit('removeRoom', $(this).siblings('.enter-room').text());
+  });
+  
   $('#sign-out').click(function () {
-    active = false;
-    socket.emit('sign-out', roomId);
+    socket.emit('signOut', thisRoomId);
     $('#control-panel').fadeOut(DURATION);
-    $('.axis').fadeOut(DURATION);
+    $('#axis .' + thisRoomId).fadeOut(DURATION);
     $.each(activeCovers, function (k, v) {
       activeCovers[k].remove();
       delete activeCovers[k];
-    });
-
-    socket.on('activeRooms', function (activeRooms) {
-      console.log(activeRooms);
-      $.each(activeRooms, function (room) {
-        console.log(room);
-        $('#active-rooms').append(room);
-      });
     });
     
     VERT.animate({opacity: 0}, DURATION);
     HORZ.animate({opacity: 0}, DURATION);
     $('#modal-panel').fadeIn(DURATION);
+    history.pushState('', '', '/');
   });
 
-  function drawTextBoxes (pw) {
-    $('.axis').css({width: UNIT * pw / 4, fontSize: UNIT * pw / 48});
-    $('footer').css({position: 'absolute', top: (HEIGHT - UNIT / 32)* pw, fontSize: UNIT / 64 * pw});
-    $('#n').css({top: 0, left: (WIDTH / 2 - UNIT / 8) * pw});
-    $('#s').css({top: (HEIGHT - UNIT / 32) * pw, left: (WIDTH / 2 - UNIT / 8) * pw});
-    $('#e').css({top: HEIGHT * pw / 2, left: (WIDTH - UNIT / 4) * pw, textAlign: 'right'});
-    $('#w').css({top: HEIGHT * pw / 2, left: 0});
-  };
-  drawTextBoxes(1);
-  
-  $(window).resize(function () {
-    var pw = $(window).width() / WIDTH;
-    modalPanel();
-    drawTextBoxes(pw);
+  socket.on('vacancy', function (boolean) {
+    $('#room').prop('disabled', !boolean);
   });
   
-  $('.axis').change(function () {
-    $(this).css('border', 'none');
-    if (!$(this).val()) {
-      $(this).css('border-bottom', '1px solid black');
+  socket.on('appendRoom', function (roomId) {
+    var existingRoom = $.map($('.enter-room'), function (elem) {
+      return $(elem).text();
+    });
+    if (existingRoom.indexOf(roomId) < 0) {
+      var $btnGroup = $('<div/>').addClass('btn-group ' + roomId).append($('<label/>').addClass('btn btn-default btn-sm enter-room').html(roomId)).append($('<label/>').addClass('btn btn-default btn-sm remove-room').html('&times;')).after(' ');
+      $('#existing-rooms').append($btnGroup);
     }
+  });
+
+  socket.on('removeRoom', function (roomId) {
+    $('.btn-group.' + roomId).hide(DURATION, function () {
+      this.remove();
+    });
+  });
+
+  function setTextBoxes (pw) {
+    $('#axis input').css({width: UNIT * pw / 4, fontSize: UNIT * pw / 48});
+    $('footer').css({position: 'absolute', top: (HEIGHT - UNIT / 32)* pw, fontSize: UNIT / 64 * pw});
+    $('#axis .n').css({top: 0, left: (WIDTH / 2 - UNIT / 8) * pw});
+    $('#axis .s').css({top: (HEIGHT - UNIT / 32) * pw, left: (WIDTH / 2 - UNIT / 8) * pw});
+    $('#axis .e').css({top: HEIGHT * pw / 2, left: (WIDTH - UNIT / 4) * pw, textAlign: 'right'});
+    $('#axis .w').css({top: HEIGHT * pw / 2, left: 0});
+  };
+  setTextBoxes(1);
+
+  function cssTextBoxes ($input) {
+    if ($input.val()) {
+      $input.css('border', 'none');
+    } else {
+      $input.css('border-bottom', '1px solid black');
+    }
+  }
+
+  $(window).resize(function () {
+    pw = $(window).width() / WIDTH;
+    modalPanel();
+    setTextBoxes(pw);
+  });
+
+  $('#axis input').on('keyup', function () {
+    var escaped = $(this).val().replace(/["' (){}\.,\[\]]/g, '');
+    $(this).val(escaped);
+  }).on('change', function () {
+    socket.emit('axis', thisRoomId, this.className.split(' ')[0], $(this).val());
+    cssTextBoxes($(this));
   });
 
   Raphael.fn.setCover = function (src, title, isbn, coord) {
@@ -128,16 +181,16 @@ $(document).ready(function () {
     else {
       var isbn = $('#search').val().replace(/-/g, '');
       if (!activeCovers.hasOwnProperty(isbn)) {
-        socket.emit('getBook', roomId, isbn, {x: 0, y: 0});
+        socket.emit('getBook', thisRoomId, isbn, {x: 0, y: 0});
       }
-      $('.search').val('');
+      $('#search').val('');
     }
   });
 
   $('#files-o').click(function () {
     var books = ['9784758101509', '9784758101493', '9784758101486', '9784758101479', '9784758101462', '9784758101455'];
     $.each(books, function(i, val){
-      socket.emit('getBook', roomId, val, {x: 0, y: 0});
+      socket.emit('getBook', thisRoomId, val, {x: 0, y: 0});
     })
   });
   
@@ -153,23 +206,22 @@ $(document).ready(function () {
     return false;
   }
   
-  socket.on('init', function (activeStates_roomId) {
-    $.each(activeStates_roomId, function (isbn, book) {
-      socket.emit('getBook', roomId, isbn, book.coord);
-      $.each(['e', 'w', 's', 'n'], function (k, v) {
-        if (activeStates_roomId.hasOwnProperty(v)) {
-          $('#' + v).val(activeStates_roomId[v]).css('border', 'none');
-        }
-      });
+  socket.on('signIn', function (activeStates_roomId) {
+    setTextBoxes(pw);
+    $.each(activeStates_roomId.covers, function (isbn, book) {
+      socket.emit('getBook', thisRoomId, isbn, book.coord);
     });
+    for (var dir of ['e', 'w', 's', 'n']) {
+      if (activeStates_roomId.axis.hasOwnProperty(dir)) {
+        $('#axis .' + dir).val(activeStates_roomId.axis[dir]);
+      }
+      cssTextBoxes($('#axis .' + dir));
+    };
   });
 
-  $('.axis').change( function () {
-    socket.emit('axis', roomId, this.id, $(this).val());
-  });
-
-  socket.on('axis', function (id, val) {
-    $('#' + id).val(val);
+  socket.on('axis', function (dir, val) {
+    $('#axis .' + dir).val(val);
+    cssTextBoxes($('#axis .' + dir));
   });
   
   socket.on('wait', function () {
@@ -182,8 +234,8 @@ $(document).ready(function () {
     $('input').prop('disabled', false);
   });
   
-  socket.on('sendBook', function (data) {
-    if (!activeCovers.hasOwnProperty(data.isbn) && active){
+  socket.on('sendCover', function (data) {
+    if (!activeCovers.hasOwnProperty(data.isbn)){
       var src = 'data:image/jpeg;base64,' + data.buffer;
       var new_cover = paper.setCover(src, data.title, data.isbn, data.coord);
       activeCovers[data.isbn] = new_cover;
@@ -215,19 +267,19 @@ $(document).ready(function () {
     var _dx = 0;
     var _dy = 0;
     moveFnc = function (dx, dy) {
-      socket.emit('moveCover', roomId, {isbn: me.isbn, dx: Math.round(dx / paper._viewBox[2] * COORD.x), dy: Math.round(-dy / paper._viewBox[3] * COORD.y)});
+      socket.emit('moveCover', thisRoomId, {isbn: me.isbn, dx: Math.round(dx / paper._viewBox[2] * COORD.x), dy: Math.round(-dy / paper._viewBox[3] * COORD.y)});
       _dx = dx;
       _dy = dy;
     };
     startFnc = function () {
-      socket.emit('wait', roomId);
+      socket.emit('wait', thisRoomId);
     };
     endFnc = function () {
       var new_coord = {isbn: me.isbn, x: Math.round(me.coord.x + _dx / paper._viewBox[2] * COORD.x), y: Math.round(me.coord.y - _dy / paper._viewBox[3] * COORD.y)}
       _dx = 0;
       _dy = 0;
-      socket.emit('placeCover', roomId, new_coord);
-      socket.emit('go', roomId);
+      socket.emit('placeCover', thisRoomId, new_coord);
+      socket.emit('go', thisRoomId);
     };
     this.drag(moveFnc, startFnc, endFnc);
   };
@@ -235,7 +287,7 @@ $(document).ready(function () {
   function setMouseHandlers(set) {
     set.draggable();
     set.dblclick(function () {
-      socket.emit('removeCover', roomId, set.isbn);
+      socket.emit('removeCover', thisRoomId, set.isbn);
     });
   }
   

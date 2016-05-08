@@ -2,19 +2,17 @@ var express = require('express'),
     http = require('http'),
     https = require('https'),
     path = require('path'),
-    async = require('async'),
     fs = require('fs'),
     querystring = require('querystring'),
     app = express(),
     server = http.createServer(app),
     routes = require('./routes'),
-    io = require('socket.io').listen(server),
-    co = require('co');
+    io = require('socket.io').listen(server);
 
 var port = Number(process.env.PORT || 8080);
 server.listen(port);
 
-app.configure( function () {
+app.configure(function () {
   app.set('views', path.join(__dirname, 'views'));
   app.set('view engine', 'ejs');
   app.use(express.favicon());
@@ -30,6 +28,11 @@ app.configure('development', function () {
 });
 
 app.get('/', routes.index);
+
+var ROOM_MAX = 4;
+function writeActiveState () {
+  fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
+}
 
 function trimTitle32 (str) {
   var trimmed = str;
@@ -47,36 +50,62 @@ function trimCoord (coord) {
 }
 
 var rakuten_url = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
-
-try {
-  var activeStates = JSON.parse(fs.readFileSync('tmp/activeStates.json', 'utf-8'));
-} catch (err) {
-  var activeStates = {};
-}
-var activeRooms = [];
-for (var roomId in activeStates) {
-  activeRooms.push(roomId);
+var activeStates;
+if (fs.existsSync('tmp/activeStates.json')) {
+  activeStates = JSON.parse(fs.readFileSync('tmp/activeStates.json', 'utf-8'));
+} else {
+  activeStates = {};
+  writeActiveState();
 }
 
 var chat = io.sockets.on('connection', function (client) {
   console.log('connected');
-  client.emit('activeRooms', activeRooms);
-  client.on('init', function (roomId) {
+  var existingRooms = [];
+  for (var roomId in activeStates) {
+    client.emit('appendRoom', roomId);
+    client.broadcast.emit('appendRoom', roomId);
+    existingRooms.push(roomId);
+  }
+  client.emit('vacancy', (existingRooms.length < ROOM_MAX));
+  client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
+  client.on('signIn', function (roomId) {
     client.set('room', roomId);
     client.join(roomId);
-    if(activeStates.hasOwnProperty(roomId)){
-      chat.to(roomId).emit('init', activeStates[roomId]);
+    if (activeStates.hasOwnProperty(roomId)) {
+      client.emit('signIn', activeStates[roomId]);
     } else {
-      activeStates[roomId] = {};
-      activeRooms.push(roomId);
+      activeStates[roomId] = {covers: {}, axis: {}};
+      writeActiveState();
+    }
+    if (existingRooms.indexOf(roomId) < 0) {
+      existingRooms.push(roomId);
+      client.emit('appendRoom', roomId);
+      client.broadcast.emit('appendRoom', roomId);
+      client.emit('vacancy', (existingRooms.length < ROOM_MAX));
+      client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
     }
   })
-  
-  client.on('sign-out', function (roomId) {
-    console.log('sign-out');
+
+  client.on('signOut', function (roomId) {
+    client.emit('vacancy', (existingRooms.length < ROOM_MAX));
+    client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
     client.leave(roomId);
   });
-  
+
+  client.on('removeRoom', function (roomId) {
+    if ( existingRooms.indexOf(roomId) > 0) {
+      existingRooms.splice(existingRooms.indexOf(roomId), 1);
+    }
+    client.emit('vacancy', (existingRooms.length < ROOM_MAX));
+    client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
+    client.emit('removeRoom', roomId);
+    client.broadcast.emit('removeRoom', roomId);
+    if (activeStates.hasOwnProperty(roomId)) {
+      delete activeStates[roomId];
+      writeActiveState();
+    }
+  });
+
   client.on('disconnect', function () {
     console.log('disconnected');
     client.leave(roomId);
@@ -90,167 +119,126 @@ var chat = io.sockets.on('connection', function (client) {
     chat.to(roomId).emit('go');
   })
 
-  client.on('axis', function(roomId, id, val) {
-    activeStates[roomId][id] = val;
-    fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
-    chat.to(roomId).emit('axis', id, val);
+  client.on('axis', function(roomId, dir, val) {
+    activeStates[roomId].axis[dir] = val;
+    writeActiveState();
+    client.emit('axis', dir, val);
+    client.broadcast.emit('axis', dir, val);
   });
-  
+    
   client.on('getBook', function (roomId, isbn, coord) {
-    async.waterfall([
-      function (callback) {
-        var title = imageURL = '';
+    var book;
+    var imagePath = path.join('tmp', isbn + '.jpg');
+    if (activeStates[roomId].covers.hasOwnProperty(isbn)) {
+      book = activeStates[roomId].covers[isbn];
+    }
+    Promise.resolve(isbn).then(function (resolve, reject) {
+      if (!book) {
+        book = fetchUrl(resolve)
+      }
+      return book;
+    }).then(function (resolve, reject) {
+      if (fs.existsSync(imagePath)) {
+        return book;
+      } else {
+        return saveImage(resolve);
+      }
+    }).then(function (resolve, reject) {
+      return sendCover(resolve);
+    }).then(function (resolve, reject) {
+      return saveBook(resolve);
+    });
+    
+    function fetchUrl() {
+      return new Promise(function (resolve, reject) {
         var par = {
           'applicationId': '1072038232996204187',
           'isbnjan': isbn
         }
-        if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].hasOwnProperty(isbn)) {
-          title = activeStates[roomId][isbn].title;
-          imageURL = activeStates[roomId][isbn].imageURL;
-//          client.emit('emitLog', 'data from tmp');
-          callback(null, isbn, imageURL, title);
-        } else {
-//          client.emit('emitLog', 'data from rakuten');
-          https.get(rakuten_url + querystring.stringify(par), function (res) {
-            var body = '';
-            res.on('data', function (chunk) {
-              body += chunk;
-            });
-            res.on('end', function () {
-              var response = JSON.parse(body);
-//              client.emit('emitLog', response);
-              try {
-                var item = response.Items[0].Item;
-                title = trimTitle32(item.title);
-                imageURL = item.mediumImageUrl;
-                activeStates[roomId][isbn] = {};
-                activeStates[roomId][isbn].title = title;
-                activeStates[roomId][isbn].imageURL = imageURL;
-                activeStates[roomId][isbn].coord = trimCoord(coord);
-                fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
-                callback(null, isbn, imageURL, title);
-              }
-              catch (err) {
-//                client.emit('emitLog', err.message);
-                console.log(err.message);
-              }
-            });
+        https.get(rakuten_url + querystring.stringify(par), function (res) {
+          var body = '';
+          res.on('data', function (chunk) {
+            body += chunk;
           });
-        };
-      },
-      function (isbn, imageURL, title, callback) {
-        var imagePath = path.join('tmp', isbn + '.jpg');
-        if (!fs.existsSync(imagePath)) {
-          var outFile = fs.createWriteStream(imagePath);
-//          client.emit('emitLog', 'image data from rakuten');
-          http.get(imageURL, function (res) {
-            var imagedata = ''
-            res.setEncoding('binary');
-            res.on('data', function (chunk) {
-              imagedata += chunk;
-            });
-            res.on('end', function () {
-              fs.writeFile(imagePath, imagedata, 'binary', function (err) {
-                if (err) throw err;
-                console.log('File saved.');
-                callback(null, isbn, imagePath, title);
+          res.on('end', function () {
+            var response = JSON.parse(body);
+            if (response.hasOwnProperty('Items')) {
+              var item = response.Items[0].Item;
+              resolve({
+                title: trimTitle32(item.title),
+                url: item.mediumImageUrl
               });
-            })
-          }).on('error', function (err) {
-            console.log(err.message);
+            }
+            else if (response.hasOwnProperty('error')) {
+              reject(response.error);
+            }
           });
-        }
-        else {
-//          client.emit('emitLog', 'image data from tmp');
-          callback(null, isbn, imagePath, title);
-        };
-      },
-      function (isbn, imagePath, title, callback) {
-        fs.readFile(imagePath, function (e, buffer) {
-          var sendBook = {
-            buffer: buffer.toString('base64'),
-            title: title,
-            isbn: isbn,
-            coord: trimCoord(coord)
-          };
-          callback(null, sendBook);
         });
-      }], function (err, sendBook) {
-        if (err) console.log(err.message);
-        chat.to(roomId).emit('sendBook', sendBook);
       });
+    }
+
+    function saveImage (item) {
+      return new Promise(function (resolve, reject) {
+        http.get(item.url, function (res) {
+          var imageData = ''
+          res.setEncoding('binary');
+          res.on('data', function (chunk) {
+            imageData += chunk;
+          });
+          res.on('end', function () {
+            fs.writeFileSync(imagePath, imageData, 'binary');
+            resolve({title: item.title, url: item.url});
+          });
+        });
+      });
+    }
+
+    function sendCover(image) {
+      return new Promise(function (resolve, reject) {
+        fs.readFile(imagePath, function (err, buffer) {
+          var cover = {
+            buffer: buffer.toString('base64'),
+            title: image.title,
+            isbn: isbn,
+            url: image.url,
+            coord: coord
+          };
+          chat.to(roomId).emit('sendCover', cover);
+          resolve(cover);
+        });
+      });
+    }
+
+    function saveBook(cover) {
+      return new Promise(function (resolve, reject) {
+        if (!activeStates[roomId].covers.hasOwnProperty(isbn)) {
+          activeStates[roomId].covers[isbn] = {};
+        }
+        activeStates[roomId].covers[isbn].title = cover.title;
+        activeStates[roomId].covers[isbn].url = cover.url;
+        activeStates[roomId].covers[isbn].coord = coord;
+        writeActiveState();
+      });
+    }
   });
   
   client.on('removeCover', function (roomId, isbn) {
-    console.log(roomId, isbn);
-    console.log('now', activeStates);
-    if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].hasOwnProperty(isbn)) {
-      delete activeStates[roomId][isbn];
+    if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].covers.hasOwnProperty(isbn)) {
+      delete activeStates[roomId].covers[isbn];
     }
     chat.to(roomId).emit('removeCover', isbn);
-    fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
+    writeActiveState();
   });
-  
+
   client.on('moveCover', function (roomId, data) {
     chat.to(roomId).emit('moveCover', data);
   });
   
   client.on('placeCover', function (roomId, data) {
-    if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].hasOwnProperty(data.isbn)) {
-      activeStates[roomId][data.isbn].coord = trimCoord({x: data.x, y: data.y});
-      fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
+    if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].covers.hasOwnProperty(data.isbn)) {
+      activeStates[roomId].covers[data.isbn].coord = trimCoord({x: data.x, y: data.y});
+      writeActiveState();
       chat.to(roomId).emit('placeCover', data);
     }
   });
 });
-
-/*
-var promise = Promise.resolve('9784088806488');
-
-promise = promise.then( function fetchURL (isbn) {
-  var par = {
-    'applicationId': '1072038232996204187',
-    'isbnjan': isbn
-  }
-  https.get(rakuten_url + querystring.stringify(par), function (res) {
-    var body = '';
-    res.on('data', function (chunk) {
-      body += chunk;
-    });
-    res.on('end', function () {
-      var response = JSON.parse(body);
-      var promise = new Promise(function(resolve, reject){
-        if (response.hasOwnProperty('Items')) {
-          console.log(item);
-          resolve(response.Items[0].Item);
-        } else if (response.hasOwnProperty('error')) {
-          reject(response.error);
-        }
-      });
-      return promise;
-    });
-  });
-});
-
-promise = promise.then( function getImageURL (item) {
-  console.log('imageURL', item);
-  var title = trimTitle32(item.title);
-  var imageURL = item.mediumImageUrl;
-  var imagePath = path.join('tmp', item.isbn + '.jpg');
-  http.get(imageURL, function (res) {
-    var imagedata = ''
-    res.setEncoding('binary');
-    res.on('data', function (chunk) {
-      imagedata += chunk;
-    });
-    res.on('end', function () {
-      fs.writeFile(imagePath, imagedata, 'binary', function (err) {
-        if (err) return Promise.reject(err.message);
-        console.log('File saved.');
-        return Promise.resolve(item.imagePath);
-      });
-    });
-  });
-});
-
-*/
