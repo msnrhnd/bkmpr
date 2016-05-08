@@ -36,6 +36,7 @@ $(document).ready(function () {
     VERT.animate({opacity: 1}, DURATION);
     HORZ.animate({opacity: 1}, DURATION);
     $('#modal-panel').fadeOut(DURATION);
+    cssTextBoxes($('#axis .' + thisRoomId + ' input'));
     socket.emit('signIn', thisRoomId);
     history.pushState('', '', '?' + roomId);
   }
@@ -126,10 +127,11 @@ $(document).ready(function () {
     setTextBoxes(pw);
   });
 
-  $(document).on('keyup', '#axis input', function (e) {
+  $(document).on('keyup', '#axis .' + thisRoomId + ' input', function (e) {
     var escaped = $(e.currentTarget).val().replace(/["' (){}\.,\[\]]/g, '');
     $(e.currentTarget).val(escaped);
-  }).on('change', '#axis input', function (e) {
+    cssTextBoxes($(e.currentTarget));
+  }).on('change', '#axis .' + thisRoomId + ' input', function (e) {
     socket.emit('axis', thisRoomId, e.currentTarget.className.split(' ')[0], $(e.currentTarget).val());
     cssTextBoxes($(e.currentTarget));
   });
@@ -219,8 +221,8 @@ $(document).ready(function () {
   });
 
   socket.on('axis', function (dir, val) {
-    $('#axis .' + dir).val(val);
-    cssTextBoxes($('#axis .' + dir));
+    $('#axis .' + thisRoomId + ' .' + dir).val(val);
+    cssTextBoxes($('#axis .' + thisRoomId + ' .' + dir));
   });
   
   socket.on('wait', function () {
