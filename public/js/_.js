@@ -29,14 +29,14 @@ $(document).ready(function () {
       for (var dir of ['e', 'w', 's', 'n']) {
         $('#axis .' + roomId).append($('<input/>').attr({type: 'text', maxlength: '16'}).addClass(dir));
       }
+      cssTextBoxes(pw);
     }
-    setTextBoxes(pw);
-    $('#axis .' + thisRoomId).fadeIn(DURATION);
     $('#control-panel').fadeIn(DURATION);
+    $('#axis .' + thisRoomId + ' input').fadeIn(DURATION);
     VERT.animate({opacity: 1}, DURATION);
     HORZ.animate({opacity: 1}, DURATION);
     $('#modal-panel').fadeOut(DURATION);
-    cssTextBoxes($('#axis .' + thisRoomId + ' input'));
+    checkTextBoxes($('#axis .' + thisRoomId + ' input'));
     socket.emit('signIn', thisRoomId);
     history.pushState('', '', '?' + roomId);
   }
@@ -72,12 +72,11 @@ $(document).ready(function () {
   $('#sign-out').click(function () {
     socket.emit('signOut', thisRoomId);
     $('#control-panel').fadeOut(DURATION);
-    $('#axis .' + thisRoomId).fadeOut(DURATION);
+    $('#axis .' + thisRoomId + ' input').fadeOut(DURATION);
     $.each(activeCovers, function (k, v) {
       activeCovers[k].remove();
       delete activeCovers[k];
     });
-    
     VERT.animate({opacity: 0}, DURATION);
     HORZ.animate({opacity: 0}, DURATION);
     $('#modal-panel').fadeIn(DURATION);
@@ -104,7 +103,7 @@ $(document).ready(function () {
     });
   });
 
-  function setTextBoxes (pw) {
+  function cssTextBoxes (pw) {
     $('#axis input').css({width: UNIT * pw / 4, fontSize: UNIT * pw / 48});
     $('footer').css({position: 'absolute', top: (HEIGHT - UNIT / 32)* pw, fontSize: UNIT / 64 * pw});
     $('#axis .n').css({top: 0, left: (WIDTH / 2 - UNIT / 8) * pw});
@@ -113,7 +112,7 @@ $(document).ready(function () {
     $('#axis .w').css({top: HEIGHT * pw / 2, left: 0});
   };
 
-  function cssTextBoxes ($input) {
+  function checkTextBoxes ($input) {
     if ($input.val()) {
       $input.css('border', 'none');
     } else {
@@ -124,16 +123,16 @@ $(document).ready(function () {
   $(window).resize(function () {
     pw = $(window).width() / WIDTH;
     modalPanel();
-    setTextBoxes(pw);
+    cssTextBoxes(pw);
   });
 
-  $(document).on('keyup', '#axis .' + thisRoomId + ' input', function (e) {
+  $(document).on('keyup', '#axis input', function (e) {
     var escaped = $(e.currentTarget).val().replace(/["' (){}\.,\[\]]/g, '');
     $(e.currentTarget).val(escaped);
-    cssTextBoxes($(e.currentTarget));
-  }).on('change', '#axis .' + thisRoomId + ' input', function (e) {
+    checkTextBoxes($(e.currentTarget));
+  }).on('change', '#axis input', function (e) {
     socket.emit('axis', thisRoomId, e.currentTarget.className.split(' ')[0], $(e.currentTarget).val());
-    cssTextBoxes($(e.currentTarget));
+    checkTextBoxes($(e.currentTarget));
   });
 
   Raphael.fn.setCover = function (src, title, isbn, coord) {
@@ -170,7 +169,7 @@ $(document).ready(function () {
       cover.attr({
         'cursor': 'pointer'
       });
-      setMouseHandlers(cover);
+      cover.setMouseHandlers();
       cover.transform('t' + inv(coord).x + ',' + inv(coord).y);
     }
     return cover;
@@ -214,15 +213,15 @@ $(document).ready(function () {
     });
     for (var dir of ['e', 'w', 's', 'n']) {
       if (activeStates_roomId.axis.hasOwnProperty(dir)) {
-        $('#axis .' + dir).val(activeStates_roomId.axis[dir]);
+        $('#axis .' + thisRoomId + ' .' + dir).val(activeStates_roomId.axis[dir]);
       }
-      cssTextBoxes($('#axis .' + dir));
+      checkTextBoxes($('#axis .' + thisRoomId + ' .' + dir));
     };
   });
 
   socket.on('axis', function (dir, val) {
     $('#axis .' + thisRoomId + ' .' + dir).val(val);
-    cssTextBoxes($('#axis .' + thisRoomId + ' .' + dir));
+    checkTextBoxes($('#axis .' + thisRoomId + ' .' + dir));
   });
   
   socket.on('wait', function () {
@@ -263,14 +262,17 @@ $(document).ready(function () {
     console.log(serverLog);
   });
   
-  Raphael.st.draggable = function () {
+  Raphael.st.setMouseHandlers = function () {
     var me = this;
     var _dx = 0;
     var _dy = 0;
+    var d = 0;
+    var start, end;
     moveFnc = function (dx, dy) {
       socket.emit('moveCover', thisRoomId, {isbn: me.isbn, dx: Math.round(dx / paper._viewBox[2] * COORD.x), dy: Math.round(-dy / paper._viewBox[3] * COORD.y)});
       _dx = dx;
       _dy = dy;
+      d += Math.abs(_dx) + Math.abs(_dy);
     };
     startFnc = function () {
       socket.emit('wait', thisRoomId);
@@ -279,18 +281,21 @@ $(document).ready(function () {
       var new_coord = {isbn: me.isbn, x: Math.round(me.coord.x + _dx / paper._viewBox[2] * COORD.x), y: Math.round(me.coord.y - _dy / paper._viewBox[3] * COORD.y)}
       _dx = 0;
       _dy = 0;
+      d = 0;
       socket.emit('placeCover', thisRoomId, new_coord);
       socket.emit('go', thisRoomId);
     };
     this.drag(moveFnc, startFnc, endFnc);
-  };
-  
-  function setMouseHandlers(set) {
-    set.draggable();
-    set.dblclick(function () {
-      socket.emit('removeCover', thisRoomId, set.isbn);
+    this.mousedown(function () {
+      start = new Date();
     });
-  }
+    this.mouseup(function () {
+      end = new Date();
+      if ((end - start) > 1048 && d < 32) {
+        socket.emit('removeCover', thisRoomId, me.isbn);
+      };
+    });
+  };
   
   function map(origin) {
     var tx, ty;
