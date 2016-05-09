@@ -65,6 +65,15 @@ $(document).ready(function () {
     signIn($(e.currentTarget).text());
   });
 
+/*  $(document).on('mousedown', '.remove-room', function (e) {
+    var start = new Date();
+  }).on('mouseup', '.remove-room', function (e) {
+    var end = new Date();
+    if (end - start > 1500) {
+      socket.emit('removeRoom', $(e.currentTarget).siblings('.enter-room').text());
+    }
+  }); */
+
   (function(){
     var start, end;
     $(document).on('mousedown', '.remove-room', function(e){
