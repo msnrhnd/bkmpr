@@ -345,7 +345,6 @@ $(document).ready(function () {
         a.href = image;
         a.setAttribute('download', name || 'screenshot');
         a.click();
-//        a.dispatchEvent(new CustomEvent('click'));
       }
     });
   });
