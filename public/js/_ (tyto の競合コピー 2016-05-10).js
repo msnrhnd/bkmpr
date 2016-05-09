@@ -24,7 +24,6 @@ $(document).ready(function () {
 
   function signIn(roomId) {
     thisRoomId = roomId;
-    $('#this-room').text(thisRoomId).fadeIn(DURATION);
     if (!$('#axis .' + roomId).length) {
       $('#axis').append($('<div/>').addClass(roomId));
       for (var dir of ['e', 'w', 's', 'n']) {
@@ -48,7 +47,7 @@ $(document).ready(function () {
   }
 
   function escapeText (text) {
-    return text.replace(/[^a-zA-Z0-9_\-]/g, '');
+    return text.replace(/[^a-zA-Z0-9_]/g, '');
   }
   
   $(document).on('keyup', '#room', function () {
@@ -82,7 +81,6 @@ $(document).ready(function () {
   $('#sign-out').click(function () {
     socket.emit('signOut', thisRoomId);
     $('#control-panel').fadeOut(DURATION);
-    $('#this-room').fadeOut(DURATION);
     $('#axis .' + thisRoomId + ' input').fadeOut(DURATION);
     $.each(activeCovers, function (k, v) {
       activeCovers[k].remove();
@@ -117,7 +115,6 @@ $(document).ready(function () {
   function cssTextBoxes (pw) {
     $('#axis input').css({width: UNIT * pw / 4, fontSize: UNIT * pw / 48});
     $('footer').css({position: 'absolute', top: (HEIGHT - UNIT / 32)* pw, fontSize: UNIT / 64 * pw});
-    $('#this-room').css({fontSize: UNIT / 64 * pw});
     $('#axis .n').css({top: 0, left: (WIDTH / 2 - UNIT / 8) * pw});
     $('#axis .s').css({top: (HEIGHT - UNIT / 32) * pw, left: (WIDTH / 2 - UNIT / 8) * pw});
     $('#axis .e').css({top: HEIGHT * pw / 2, left: (WIDTH - UNIT / 4) * pw, textAlign: 'right'});
@@ -215,7 +212,7 @@ $(document).ready(function () {
       left: viewbox[3] / 2 - 60
     }).text(mes);
     $('#main-panel').prepend($mes);
-    $mes.fadeOut('slow', function () {
+    $mes.fadeOut(DURATION, function () {
       $(this).remove();
     });
     return false;

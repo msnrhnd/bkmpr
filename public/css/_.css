@@ -8895,33 +8895,7 @@ input.w {
   text-align: left;
 }
 
-/* line 49, ../sass/_.scss */
-message {
-  display: inline-block;
-  position: absolute;
-  width: 120px;
-  height: 40px;
-  line-height: 40px;
-  z-index: 1;
-  font-weight: bold;
-  text-align: center;
-  color: white;
-  font-size: 22px;
-  font-size: 1.375rem;
-  -moz-border-radius: 8px;
-  -webkit-border-radius: 8px;
-  border-radius: 8px;
-}
-/* line 61, ../sass/_.scss */
-message.not-found {
-  background-color: red;
-}
-/* line 64, ../sass/_.scss */
-message.duplicated {
-  background-color: blue;
-}
-
-/* line 69, ../sass/_.scss */
+/* line 51, ../sass/_.scss */
 #control-panel {
   font-size: 22px;
   font-size: 1.375rem;
@@ -8929,13 +8903,20 @@ message.duplicated {
   top: 0;
   left: 0;
 }
-/* line 75, ../sass/_.scss */
+/* line 57, ../sass/_.scss */
 #control-panel input {
   position: relative;
   width: 154px;
 }
 
-/* line 81, ../sass/_.scss */
+/* line 63, ../sass/_.scss */
+#this-room {
+  position: fixed;
+  top: 0;
+  right: 0;
+}
+
+/* line 69, ../sass/_.scss */
 #modal-panel {
   position: fixed;
   width: 48%;
@@ -8945,21 +8926,21 @@ message.duplicated {
   background: #fff;
   z-index: 2;
 }
-/* line 89, ../sass/_.scss */
+/* line 77, ../sass/_.scss */
 #modal-panel p {
   text-align: center;
 }
-/* line 92, ../sass/_.scss */
+/* line 80, ../sass/_.scss */
 #modal-panel .create-room {
   margin-bottom: 1.4em;
 }
-/* line 94, ../sass/_.scss */
+/* line 82, ../sass/_.scss */
 #modal-panel .create-room .room-form {
   position: relative;
   text-align: center;
   margin: 0 auto;
 }
-/* line 98, ../sass/_.scss */
+/* line 86, ../sass/_.scss */
 #modal-panel .create-room .room-form #room {
   position: relative;
   width: 60%;
