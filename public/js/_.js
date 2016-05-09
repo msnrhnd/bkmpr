@@ -65,10 +65,28 @@ $(document).ready(function () {
     signIn($(e.currentTarget).text());
   });
 
-  $(document).on('click', '.remove-room', function (e) {
-    socket.emit('removeRoom', $(e.currentTarget).siblings('.enter-room').text());
-  });
-  
+/*  $(document).on('mousedown', '.remove-room', function (e) {
+    var start = new Date();
+  }).on('mouseup', '.remove-room', function (e) {
+    var end = new Date();
+    if (end - start > 1500) {
+      socket.emit('removeRoom', $(e.currentTarget).siblings('.enter-room').text());
+    }
+  }); */
+
+  (function(){
+    var start, end;
+    $(document).on('mousedown', '.remove-room', function(e){
+      start = new Date();
+    });
+    $(document).on('mouseup', '.remove-room', function(e){
+      end = new Date();
+      if (end - start > 1500) {
+        socket.emit('removeRoom', $(e.currentTarget).siblings('.enter-room').text());
+      }
+    });
+  })();
+
   $('#sign-out').click(function () {
     socket.emit('signOut', thisRoomId);
     $('#control-panel').fadeOut(DURATION);
@@ -291,7 +309,7 @@ $(document).ready(function () {
     });
     this.mouseup(function () {
       end = new Date();
-      if ((end - start) > 1048 && d < 32) {
+      if ((end - start) > 1500 && d < 40) {
         socket.emit('removeCover', thisRoomId, me.isbn);
       };
     });
