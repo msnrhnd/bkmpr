@@ -30,6 +30,11 @@ app.configure('development', function () {
 
 app.get('/', routes.index);
 
+var CS = process.env.DATABASE_URL + '?ssl=true';
+pg.connect(CS, function (err, client) {
+  console.log(client);
+});
+
 var ROOM_MAX = 6;
 var COVERS_MAX = 4;
 function writeActiveState () {
