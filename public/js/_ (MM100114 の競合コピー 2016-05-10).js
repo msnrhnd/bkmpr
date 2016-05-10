@@ -13,6 +13,14 @@ $(document).ready(function () {
   var HORZ = paper.path('M' + UNIT / 32 + ' ' + HEIGHT / 2 + 'L' + (WIDTH - UNIT / 32) + ' ' + HEIGHT / 2).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
   var DURATION = 200;
   var pw = 1;
+  function modalPanel () {
+    var w = $('#modal-panel').outerWidth();
+    var h = $('#modal-panel').outerHeight();
+    $('#modal-panel').css({left: $(window).width() / 2 - w / 2, top: $(window).height() / 2 - h / 2});
+  };
+  modalPanel();
+  $('#control-panel').hide();
+  $('#sign-in').prop('disabled', true);
 
   function getQueryString() {
     if (location.search.length > 1) {
@@ -37,20 +45,11 @@ $(document).ready(function () {
       result += k + '=' + v + '&';
     });
     return result.substr(0, result.length - 1);
-  }
 
-  function modalPanel () {
-    var w = $('#modal-panel').outerWidth();
-    var h = $('#modal-panel').outerHeight();
-    $('#modal-panel').css({left: $(window).width() / 2 - w / 2, top: $(window).height() / 2 - h / 2});
-  };
-  modalPanel();
-  $('#control-panel').hide();
-  $('#sign-in').prop('disabled', true);
+  }
 
   function signIn(roomId) {
     thisRoomId = roomId;
-    $('#this-room').text(thisRoomId).fadeIn(DURATION);
     if (!$('#axis .' + roomId).length) {
       $('#axis').append($('<div/>').addClass(roomId));
       for (var dir of ['e', 'w', 's', 'n']) {
@@ -59,28 +58,23 @@ $(document).ready(function () {
       cssTextBoxes(pw);
     }
     $('#control-panel').fadeIn(DURATION);
-    $('#axis .' + thisRoomId + ' input').fadeIn(DURATION);
+    $('#modal-panel').fadeOut(DURATION);
     VERT.animate({opacity: 1}, DURATION);
     HORZ.animate({opacity: 1}, DURATION);
-    $('#modal-panel').fadeOut(DURATION);
+    $('#axis .' + thisRoomId + ' input').fadeIn(DURATION);
     checkTextBoxes($('#axis .' + thisRoomId + ' input'));
     socket.emit('signIn', thisRoomId);
     history.pushState('', '', '?room=' + thisRoomId);
   }
-
+  
   if (getQueryString().hasOwnProperty('room')) {
     signIn(getQueryString.room);
   }
-  if (getQueryString.hasOwnProperty('load')) {
-    load(getQueryString.load);
-  }
-
-  function load (key) {
-    
+  if (getQueryString.hasOwnProperty('')) {
   }
   
   function escapeText (text) {
-    return text.replace(/[^a-zA-Z0-9_\-]/g, '');
+    return text.replace(/[^a-zA-Z0-9_]/g, '');
   }
   
   $(document).on('keyup', '#room', function () {
@@ -98,23 +92,13 @@ $(document).ready(function () {
     signIn($(e.currentTarget).text());
   });
 
-  (function(){
-    var start, end;
-    $(document).on('mousedown', '.remove-room', function(e){
-      start = new Date();
-    });
-    $(document).on('mouseup', '.remove-room', function(e){
-      end = new Date();
-      if (end - start > 1500) {
-        socket.emit('removeRoom', $(e.currentTarget).siblings('.enter-room').text());
-      }
-    });
-  })();
-
+  $(document).on('click', '.remove-room', function (e) {
+    socket.emit('removeRoom', $(e.currentTarget).siblings('.enter-room').text());
+  });
+  
   $('#sign-out').click(function () {
     socket.emit('signOut', thisRoomId);
     $('#control-panel').fadeOut(DURATION);
-    $('#this-room').fadeOut(DURATION);
     $('#axis .' + thisRoomId + ' input').fadeOut(DURATION);
     $.each(activeCovers, function (k, v) {
       activeCovers[k].remove();
@@ -149,7 +133,6 @@ $(document).ready(function () {
   function cssTextBoxes (pw) {
     $('#axis input').css({width: UNIT * pw / 4, fontSize: UNIT * pw / 48});
     $('footer').css({position: 'absolute', top: (HEIGHT - UNIT / 32)* pw, fontSize: UNIT / 64 * pw});
-    $('#this-room').css({fontSize: UNIT / 64 * pw});
     $('#axis .n').css({top: 0, left: (WIDTH / 2 - UNIT / 8) * pw});
     $('#axis .s').css({top: (HEIGHT - UNIT / 32) * pw, left: (WIDTH / 2 - UNIT / 8) * pw});
     $('#axis .e').css({top: HEIGHT * pw / 2, left: (WIDTH - UNIT / 4) * pw, textAlign: 'right'});
@@ -206,16 +189,14 @@ $(document).ready(function () {
           'stroke': 'black',
           'fill': 'white',
           'stroke-width': 1
-        }),
-        me.image(src, - w / 2, - h / 2, w, h),
-        me.text(0, h / 2 + margin * 4, trimTitle16(title)).attr({
+        }), me.image(src, - w / 2, - h / 2, w, h), me.text(0, h / 2 + margin * 4, trimTitle16(title)).attr({
           'font-size': margin * 2
         })
       );
       cover.attr({
         'cursor': 'pointer'
       });
-      cover.setMouseHandlers();
+      setMouseHandlers(cover);
       cover.transform('t' + inv(coord).x + ',' + inv(coord).y);
     }
     return cover;
@@ -308,17 +289,14 @@ $(document).ready(function () {
     console.log(serverLog);
   });
   
-  Raphael.st.setMouseHandlers = function () {
+  Raphael.st.draggable = function () {
     var me = this;
     var _dx = 0;
     var _dy = 0;
-    var d = 0;
-    var start, end;
     moveFnc = function (dx, dy) {
       socket.emit('moveCover', thisRoomId, {isbn: me.isbn, dx: Math.round(dx / paper._viewBox[2] * COORD.x), dy: Math.round(-dy / paper._viewBox[3] * COORD.y)});
       _dx = dx;
       _dy = dy;
-      d += Math.abs(_dx) + Math.abs(_dy);
     };
     startFnc = function () {
       socket.emit('wait', thisRoomId);
@@ -327,22 +305,23 @@ $(document).ready(function () {
       var new_coord = {isbn: me.isbn, x: Math.round(me.coord.x + _dx / paper._viewBox[2] * COORD.x), y: Math.round(me.coord.y - _dy / paper._viewBox[3] * COORD.y)}
       _dx = 0;
       _dy = 0;
-      d = 0;
       socket.emit('placeCover', thisRoomId, new_coord);
       socket.emit('go', thisRoomId);
     };
     this.drag(moveFnc, startFnc, endFnc);
-    this.mousedown(function () {
-      start = new Date();
-    });
-    this.mouseup(function () {
-      end = new Date();
-      if ((end - start) > 1500 && d < 40) {
-        socket.emit('removeCover', thisRoomId, me.isbn);
-      };
-    });
   };
+
+  Raphael.st.mouseHold = function () {
+    var me = this;
+  }
   
+  function setMouseHandlers(set) {
+    set.draggable();
+    set.dblclick(function () {
+      socket.emit('removeCover', thisRoomId, set.isbn);
+    });
+  }
+
   function map(origin) {
     var tx, ty;
     tx = COORD.x * (origin.x / paper._viewBox[2] - 1 / 2);
@@ -367,17 +346,4 @@ $(document).ready(function () {
     }
     return originalRaphaelImageFn.call(this, url, x, y, w, h);
   }
-
-  $(document).on('click', '#camera', function(){
-    html2canvas($('#main-panel'), {
-      onrendered: function(canvas) {
-        var image = canvas.toDataURL('image/png');
-        var a = document.createElement('a');
-        console.log(image);
-        a.href = image;
-        a.setAttribute('download', name || 'screenshot');
-        a.dispatchEvent(new CustomEvent('click'));
-      }
-    });
-  });
 });
