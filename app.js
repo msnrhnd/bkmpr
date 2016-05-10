@@ -160,7 +160,8 @@ var chat = io.sockets.on('connection', function (client) {
     function fetchUrl() {
       return new Promise(function (resolve, reject) {
         var par = {
-          'applicationId': process.env.RAKUTEN_APP_ID,
+//          'applicationId': process.env.RAKUTEN_APP_ID,
+          'applicationId': 1072038232996204187,
           'isbnjan': isbn
         }
         https.get(rakuten_url + querystring.stringify(par), function (res) {
