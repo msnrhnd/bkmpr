@@ -7,7 +7,8 @@ var express = require('express'),
     app = express(),
     server = http.createServer(app),
     routes = require('./routes'),
-    io = require('socket.io').listen(server);
+    io = require('socket.io').listen(server),
+    pg = require('pg');
 
 var port = Number(process.env.PORT || 8080);
 server.listen(port);
@@ -250,5 +251,9 @@ var chat = io.sockets.on('connection', function (client) {
       writeActiveState();
       chat.to(roomId).emit('placeCover', data);
     }
+  });
+  
+  client.on('save', function (roomId) {
+    console.log(process.env.DATABASE_URL);    
   });
 });

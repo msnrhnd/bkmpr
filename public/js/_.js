@@ -221,6 +221,10 @@ $(document).ready(function () {
     return cover;
   }
 
+  $('#save').click(function () {
+    socket.emit('save', thisRoomId);
+  });
+    
   $('#plus').click(function () {
     if ($('img').size() > 32) {
       message('Too much covers!', 'not-found');
