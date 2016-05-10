@@ -128,6 +128,7 @@ var chat = io.sockets.on('connection', function (client) {
   });
 
   client.on('getBook', function (roomId, isbn, coord) {
+    console.log('getbook');
     var book;
     var imagePath = path.join('tmp', isbn + '.jpg');
     if (activeStates[roomId].covers.hasOwnProperty(isbn)) {
@@ -160,8 +161,8 @@ var chat = io.sockets.on('connection', function (client) {
     function fetchUrl() {
       return new Promise(function (resolve, reject) {
         var par = {
-//          'applicationId': process.env.RAKUTEN_APP_ID,
-          'applicationId': 1072038232996204187,
+          'applicationId': process.env.RAKUTEN_APP_ID,
+//          'applicationId': '1072038232996204187',
           'isbnjan': isbn
         }
         https.get(rakuten_url + querystring.stringify(par), function (res) {

@@ -69,14 +69,14 @@ $(document).ready(function () {
   }
 
   if (getQueryString().hasOwnProperty('room')) {
-    signIn(getQueryString.room);
+    signIn(getQueryString().room);
   }
+  
   if (getQueryString.hasOwnProperty('load')) {
     load(getQueryString.load);
   }
 
   function load (key) {
-    
   }
   
   function escapeText (text) {
