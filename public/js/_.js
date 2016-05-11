@@ -43,7 +43,8 @@ $(document).ready(function () {
     var w = $('#modal-panel').outerWidth();
     var h = $('#modal-panel').outerHeight();
     $('#modal-panel').css({left: $(window).width() / 2 - w / 2, top: $(window).height() / 2 - h / 2});
-  };
+  }
+  
   modalPanel();
   $('#control-panel').hide();
   $('#sign-in').prop('disabled', true);
@@ -72,11 +73,8 @@ $(document).ready(function () {
     signIn(getQueryString().room);
   }
   
-  if (getQueryString.hasOwnProperty('load')) {
-    load(getQueryString.load);
-  }
-
-  function load (key) {
+  if (getQueryString().hasOwnProperty('load')) {
+    socket.emit('load', getQueryString().load);
   }
   
   function escapeText (text) {
@@ -154,7 +152,7 @@ $(document).ready(function () {
     $('#axis .s').css({top: (HEIGHT - UNIT / 32) * pw, left: (WIDTH / 2 - UNIT / 8) * pw});
     $('#axis .e').css({top: HEIGHT * pw / 2, left: (WIDTH - UNIT / 4) * pw, textAlign: 'right'});
     $('#axis .w').css({top: HEIGHT * pw / 2, left: 0});
-  };
+  }
 
   function checkTextBoxes ($input) {
     if ($input.val()) {
@@ -224,7 +222,11 @@ $(document).ready(function () {
   $('#save').click(function () {
     socket.emit('save', thisRoomId);
   });
-    
+
+  socket.on('save', function(id) {
+    console.log(id);
+  });
+  
   $('#plus').click(function () {
     if ($('img').size() > 32) {
       message('Too much covers!', 'not-found');
@@ -266,7 +268,7 @@ $(document).ready(function () {
         $('#axis .' + thisRoomId + ' .' + dir).val(activeStates_roomId.axis[dir]);
       }
       checkTextBoxes($('#axis .' + thisRoomId + ' .' + dir));
-    };
+    }
   });
 
   socket.on('axis', function (dir, val) {
@@ -343,9 +345,9 @@ $(document).ready(function () {
       end = new Date();
       if ((end - start) > 1500 && d < 40) {
         socket.emit('removeCover', thisRoomId, me.isbn);
-      };
+      }
     });
-  };
+  }
   
   function map(origin) {
     var tx, ty;

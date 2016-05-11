@@ -30,6 +30,7 @@ app.configure('development', function () {
 
 app.get('/', routes.index);
 
+var DB = 'bkmpr';
 var ROOM_MAX = 6;
 var COVERS_MAX = 4;
 function writeActiveState () {
@@ -253,8 +254,48 @@ var socket = io.on('connection', function (client) {
   });
   
   client.on('save', function (roomId) {
-    pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, cli) {
-      console.log(cli);
+    pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client) {
+      var id = genId(8);
+      var existingIds = [];
+      var query = pg_client.query('select id from ' + DB + ';');
+      query.on('row', function(row) {
+        existingIds.push(row.id);
+      });
+      query.on('end', function(row, err) {
+        while (existingIds.indexOf(id) >= 0) {
+          id = genId(8);
+        }
+        pg_client.query("insert into " + DB + " (id, covers) values ('" + id + "','" + JSON.stringify(activeStates[roomId]) + "');");
+        client.emit('save', id);
+      });
     });
   });
+
+  client.on('load', function (id) {
+    pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client) {
+      var existingIds = [];
+      var query = pg_client.query('select id from ' + DB + ';');
+      query.on('row', function (row) {
+        existingIds.push(row.id);
+      });
+      query.on('end', function (row, err) {
+        if (existingIds.indexOf(id) >= 0) {
+          var _ = pg_client.query("select covers from " + DB + " where id='" + id + "';");
+          _.on('row', function (row) {
+            console.log(row.covers);
+          });
+        }
+      });
+    });
+  });
+  
+  function genId (len) {
+    var c = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    var cl = c.length;
+    var r = '';
+    for (var i = 0; i < len; i++) {
+      r += c[Math.floor(Math.random() * cl)];
+    }
+    return r;
+  }
 });
