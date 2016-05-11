@@ -6,13 +6,13 @@
     "start": "node app.js"
   },
   "dependencies": {
+    "ejs": "*",
     "express": "3.4.8",
+    "fs": "*",
     "http": "*",
     "https": "*",
     "path": "*",
-    "fs": "*",
     "querystring": "*",
-    "socket.io": "*",
-    "ejs": "*"
+    "socket.io": "^1.4.6"
   }
 }
