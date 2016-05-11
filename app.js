@@ -60,7 +60,7 @@ if (fs.existsSync('tmp/activeStates.json')) {
   writeActiveState();
 }
 
-var chat = io.sockets.on('connection', function (client) {
+var socket = io.on('connection', function (client) {
   console.log('connected');
   var existingRooms = [];
   for (var roomId in activeStates) {
@@ -71,7 +71,7 @@ var chat = io.sockets.on('connection', function (client) {
   client.emit('vacancy', (existingRooms.length < ROOM_MAX));
   client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
   client.on('signIn', function (roomId) {
-    client.set('room', roomId);
+    client.room = roomId;
     client.join(roomId);
     if (activeStates.hasOwnProperty(roomId)) {
       client.emit('signIn', activeStates[roomId]);
@@ -114,11 +114,11 @@ var chat = io.sockets.on('connection', function (client) {
   });
   
   client.on('wait', function (roomId) {
-    chat.to(roomId).emit('wait');
+    socket.to(roomId).emit('wait');
   })
 
   client.on('go', function (roomId) {
-    chat.to(roomId).emit('go');
+    socket.to(roomId).emit('go');
   })
 
   client.on('axis', function(roomId, dir, val) {
@@ -129,7 +129,6 @@ var chat = io.sockets.on('connection', function (client) {
   });
 
   client.on('getBook', function (roomId, isbn, coord) {
-    console.log('getbook');
     var book;
     var imagePath = path.join('tmp', isbn + '.jpg');
     if (activeStates[roomId].covers.hasOwnProperty(isbn)) {
@@ -213,7 +212,7 @@ var chat = io.sockets.on('connection', function (client) {
             url: image.url,
             coord: coord
           };
-          chat.to(roomId).emit('sendCover', cover);
+          socket.to(roomId).emit('sendCover', cover);
           resolve(cover);
         });
       });
@@ -237,19 +236,19 @@ var chat = io.sockets.on('connection', function (client) {
     if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].covers.hasOwnProperty(isbn)) {
       delete activeStates[roomId].covers[isbn];
     }
-    chat.to(roomId).emit('removeCover', isbn);
+    socket.to(roomId).emit('removeCover', isbn);
     writeActiveState();
   });
 
   client.on('moveCover', function (roomId, data) {
-    chat.to(roomId).emit('moveCover', data);
+    socket.to(roomId).emit('moveCover', data);
   });
   
   client.on('placeCover', function (roomId, data) {
     if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].covers.hasOwnProperty(data.isbn)) {
       activeStates[roomId].covers[data.isbn].coord = trimCoord({x: data.x, y: data.y});
       writeActiveState();
-      chat.to(roomId).emit('placeCover', data);
+      socket.to(roomId).emit('placeCover', data);
     }
   });
   
