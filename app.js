@@ -256,8 +256,6 @@ var chat = io.sockets.on('connection', function (client) {
   client.on('save', function (roomId) {
     pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, cli) {
       console.log(cli);
-    }
-});
-
+    });
   });
 });
