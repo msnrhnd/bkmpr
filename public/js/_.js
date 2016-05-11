@@ -373,17 +373,4 @@ $(document).ready(function () {
     }
     return originalRaphaelImageFn.call(this, url, x, y, w, h);
   }
-
-  $(document).on('click', '#camera', function(){
-    html2canvas($('#main-panel'), {
-      onrendered: function(canvas) {
-        var image = canvas.toDataURL('image/png');
-        var a = document.createElement('a');
-        console.log(image);
-        a.href = image;
-        a.setAttribute('download', name || 'screenshot');
-        a.dispatchEvent(new CustomEvent('click'));
-      }
-    });
-  });
 });
