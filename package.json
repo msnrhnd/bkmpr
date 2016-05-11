@@ -12,6 +12,7 @@
     "path": "*",
     "fs": "*",
     "querystring": "*",
+    "socket.io": "*",
     "ejs": "*"
   }
 }
