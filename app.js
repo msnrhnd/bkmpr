@@ -1,14 +1,14 @@
 var express = require('express'),
-    http = require('http'),
-    https = require('https'),
-    path = require('path'),
-    fs = require('fs'),
-    querystring = require('querystring'),
-    app = express(),
-    server = http.createServer(app),
-    routes = require('./routes'),
-    io = require('socket.io').listen(server),
-    pg = require('pg');
+  http = require('http'),
+  https = require('https'),
+  path = require('path'),
+  fs = require('fs'),
+  querystring = require('querystring'),
+  app = express(),
+  server = http.createServer(app),
+  routes = require('./routes'),
+  io = require('socket.io').listen(server),
+  pg = require('pg');
 
 var port = Number(process.env.PORT || 8080);
 server.listen(port);
@@ -33,11 +33,21 @@ app.get('/', routes.index);
 var DB = 'bkmpr';
 var ROOM_MAX = 6;
 var COVERS_MAX = 4;
-function writeActiveState () {
+var RAKUTEN_URL = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
+var activeStates = {};
+
+function writeActiveState() {
   fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
 }
 
-function trimTitle32 (str) {
+if (fs.existsSync('tmp/activeStates.json')) {
+  activeStates = JSON.parse(fs.readFileSync('tmp/activeStates.json', 'utf-8'));
+}
+else {
+  writeActiveState();
+}
+
+function trimTitle32(str) {
   var trimmed = str;
   if (str.length > 32) {
     trimmed = str.slice(0, 32) + '…';
@@ -45,20 +55,11 @@ function trimTitle32 (str) {
   return trimmed;
 }
 
-function trimCoord (coord) {
+function trimCoord(coord) {
   for (k in coord) {
-    coord[k] = Math.round(Math.min( Math.max(coord[k], -128), 128));
+    coord[k] = Math.round(Math.min(Math.max(coord[k], -128), 128));
   }
   return coord;
-}
-
-var rakuten_url = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
-var activeStates;
-if (fs.existsSync('tmp/activeStates.json')) {
-  activeStates = JSON.parse(fs.readFileSync('tmp/activeStates.json', 'utf-8'));
-} else {
-  activeStates = {};
-  writeActiveState();
 }
 
 var socket = io.on('connection', function (client) {
@@ -76,8 +77,12 @@ var socket = io.on('connection', function (client) {
     client.join(roomId);
     if (activeStates.hasOwnProperty(roomId)) {
       client.emit('signIn', activeStates[roomId]);
-    } else {
-      activeStates[roomId] = {covers: {}, axis: {}};
+    }
+    else {
+      activeStates[roomId] = {
+        covers: {},
+        axis: {}
+      };
       writeActiveState();
     }
     if (existingRooms.indexOf(roomId) < 0) {
@@ -89,14 +94,14 @@ var socket = io.on('connection', function (client) {
     }
   })
 
-  client.on('signOut', function (roomId) {
+  Client.on('signOut', function (roomId) {
     client.emit('vacancy', (existingRooms.length < ROOM_MAX));
     client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
     client.leave(roomId);
   });
 
   client.on('removeRoom', function (roomId) {
-    if ( existingRooms.indexOf(roomId) > 0) {
+    if (existingRooms.indexOf(roomId) > 0) {
       existingRooms.splice(existingRooms.indexOf(roomId), 1);
     }
     client.emit('vacancy', (existingRooms.length < ROOM_MAX));
@@ -113,7 +118,7 @@ var socket = io.on('connection', function (client) {
     console.log('disconnected');
     client.leave(roomId);
   });
-  
+
   client.on('wait', function (roomId) {
     socket.to(roomId).emit('wait');
   })
@@ -122,7 +127,7 @@ var socket = io.on('connection', function (client) {
     socket.to(roomId).emit('go');
   })
 
-  client.on('axis', function(roomId, dir, val) {
+  client.on('axis', function (roomId, dir, val) {
     activeStates[roomId].axis[dir] = val;
     writeActiveState();
     client.emit('axis', dir, val);
@@ -136,10 +141,11 @@ var socket = io.on('connection', function (client) {
       book = activeStates[roomId].covers[isbn];
     }
 
-    Promise.resolve(isbn).then(function(resolve, reject){
+    Promise.resolve(isbn).then(function (resolve, reject) {
       if (Object.keys(activeStates[roomId].covers).length < COVERS_MAX) {
         return isbn;
-      } else {
+      }
+      else {
         return false;
       }
     }).then(function (resolve, reject) {
@@ -150,7 +156,8 @@ var socket = io.on('connection', function (client) {
     }).then(function (resolve, reject) {
       if (fs.existsSync(imagePath)) {
         return book;
-      } else {
+      }
+      else {
         return saveImage(resolve);
       }
     }).then(function (resolve, reject) {
@@ -165,7 +172,7 @@ var socket = io.on('connection', function (client) {
           'applicationId': process.env.RAKUTEN_APP_ID,
           'isbnjan': isbn
         }
-        https.get(rakuten_url + querystring.stringify(par), function (res) {
+        https.get(RAKUTEN_URL + querystring.stringify(par), function (res) {
           var body = '';
           res.on('data', function (chunk) {
             body += chunk;
@@ -187,7 +194,7 @@ var socket = io.on('connection', function (client) {
       });
     }
 
-    function saveImage (item) {
+    function saveImage(item) {
       return new Promise(function (resolve, reject) {
         http.get(item.url, function (res) {
           var imageData = ''
@@ -197,7 +204,10 @@ var socket = io.on('connection', function (client) {
           });
           res.on('end', function () {
             fs.writeFileSync(imagePath, imageData, 'binary');
-            resolve({title: item.title, url: item.url});
+            resolve({
+              title: item.title,
+              url: item.url
+            });
           });
         });
       });
@@ -232,7 +242,7 @@ var socket = io.on('connection', function (client) {
       });
     }
   });
-  
+
   client.on('removeCover', function (roomId, isbn) {
     if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].covers.hasOwnProperty(isbn)) {
       delete activeStates[roomId].covers[isbn];
@@ -244,24 +254,27 @@ var socket = io.on('connection', function (client) {
   client.on('moveCover', function (roomId, data) {
     socket.to(roomId).emit('moveCover', data);
   });
-  
+
   client.on('placeCover', function (roomId, data) {
     if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].covers.hasOwnProperty(data.isbn)) {
-      activeStates[roomId].covers[data.isbn].coord = trimCoord({x: data.x, y: data.y});
+      activeStates[roomId].covers[data.isbn].coord = trimCoord({
+        x: data.x,
+        y: data.y
+      });
       writeActiveState();
       socket.to(roomId).emit('placeCover', data);
     }
   });
-  
+
   client.on('save', function (roomId) {
     pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client) {
       var id = genId(8);
       var existingIds = [];
       var query = pg_client.query('select id from ' + DB + ';');
-      query.on('row', function(row) {
+      query.on('row', function (row) {
         existingIds.push(row.id);
       });
-      query.on('end', function(row, err) {
+      query.on('end', function (row, err) {
         while (existingIds.indexOf(id) >= 0) {
           id = genId(8);
         }
@@ -288,8 +301,8 @@ var socket = io.on('connection', function (client) {
       });
     });
   });
-  
-  function genId (len) {
+
+  function genId(len) {
     var c = 'abcdefghijklmnopqrstuvwxyz0123456789';
     var cl = c.length;
     var r = '';
