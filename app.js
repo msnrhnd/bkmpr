@@ -94,7 +94,7 @@ var socket = io.on('connection', function (client) {
     }
   })
 
-  Client.on('signOut', function (roomId) {
+  client.on('signOut', function (roomId) {
     client.emit('vacancy', (existingRooms.length < ROOM_MAX));
     client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
     client.leave(roomId);
