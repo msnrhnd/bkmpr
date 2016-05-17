@@ -1,14 +1,14 @@
 var express = require('express'),
-  http = require('http'),
-  https = require('https'),
-  path = require('path'),
-  fs = require('fs'),
-  querystring = require('querystring'),
-  app = express(),
-  server = http.createServer(app),
-  routes = require('./routes'),
-  io = require('socket.io').listen(server),
-  pg = require('pg');
+    http = require('http'),
+    https = require('https'),
+    path = require('path'),
+    fs = require('fs'),
+    querystring = require('querystring'),
+    app = express(),
+    server = http.createServer(app),
+    routes = require('./routes'),
+    io = require('socket.io').listen(server),
+    pg = require('pg');
 
 var port = Number(process.env.PORT || 8080);
 server.listen(port);
@@ -30,7 +30,6 @@ app.configure('development', function () {
 
 app.get('/', routes.index);
 
-var DB = 'bkmpr';
 var ROOM_MAX = 6;
 var COVERS_MAX = 4;
 var RAKUTEN_URL = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
@@ -47,10 +46,10 @@ else {
   writeActiveState();
 }
 
-function trimTitle32(str) {
+function trimTitle16(str) {
   var trimmed = str;
-  if (str.length > 32) {
-    trimmed = str.slice(0, 32) + '…';
+  if (str.length > 16) {
+    trimmed = str.slice(0, 16) + '…';
   }
   return trimmed;
 }
@@ -73,6 +72,7 @@ var socket = io.on('connection', function (client) {
   client.emit('vacancy', (existingRooms.length < ROOM_MAX));
   client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
   client.on('signIn', function (roomId) {
+    console.log('sign in ' + roomId);
     client.room = roomId;
     client.join(roomId);
     if (activeStates.hasOwnProperty(roomId)) {
@@ -101,7 +101,7 @@ var socket = io.on('connection', function (client) {
   });
 
   client.on('removeRoom', function (roomId) {
-    if (existingRooms.indexOf(roomId) > 0) {
+    if (existingRooms.indexOf(roomId) >= 0) {
       existingRooms.splice(existingRooms.indexOf(roomId), 1);
     }
     client.emit('vacancy', (existingRooms.length < ROOM_MAX));
@@ -134,117 +134,161 @@ var socket = io.on('connection', function (client) {
     client.broadcast.emit('axis', dir, val);
   });
 
-  client.on('getBook', function (roomId, isbn, coord) {
-    var book;
-    var imagePath = path.join('tmp', isbn + '.jpg');
-    if (activeStates[roomId].covers.hasOwnProperty(isbn)) {
-      book = activeStates[roomId].covers[isbn];
-    }
-
-    Promise.resolve(isbn).then(function (resolve, reject) {
-      if (Object.keys(activeStates[roomId].covers).length < COVERS_MAX) {
-        return isbn;
-      }
-      else {
-        return false;
-      }
-    }).then(function (resolve, reject) {
-      if (!book) {
-        book = fetchUrl(resolve)
-      }
-      return book;
-    }).then(function (resolve, reject) {
-      if (fs.existsSync(imagePath)) {
-        return book;
-      }
-      else {
-        return saveImage(resolve);
-      }
-    }).then(function (resolve, reject) {
-      return sendCover(resolve);
-    }).then(function (resolve, reject) {
-      return saveBook(resolve);
+  client.on('getBook', function (roomId, isbn) {
+    console.log('getBook', isbn);
+    Promise.resolve(isbn).then(function (isbn) {
+      return checkBook(isbn);
+    }).then(function (item) {
+      return item;
+    }, function (isbn) {
+      return fetchBook(isbn);
+    }).then(function (image) {
+      return checkImage(image);
+    }, function (error) {
+      return false;
+    }).then(function (item) {
+      return item;
+    }, function (item) {
+      return saveImage(item);
+    }).then(function (cover) {
+      return sendCover(roomId, getCoord(roomId, isbn), cover);
+    }).then(function (state) {
+      return saveState(roomId, getCoord(roomId, isbn), state);
     });
+  });
 
-    function fetchUrl() {
-      return new Promise(function (resolve, reject) {
-        var par = {
-          'applicationId': process.env.RAKUTEN_APP_ID,
-          'isbnjan': isbn
-        }
-        https.get(RAKUTEN_URL + querystring.stringify(par), function (res) {
-          var body = '';
-          res.on('data', function (chunk) {
-            body += chunk;
-          });
-          res.on('end', function () {
-            var response = JSON.parse(body);
-            if (response.hasOwnProperty('Items')) {
-              var item = response.Items[0].Item;
-              resolve({
-                title: trimTitle32(item.title),
-                url: item.mediumImageUrl
-              });
-            }
-            else if (response.hasOwnProperty('error')) {
-              reject(response.error);
-            }
-          });
-        });
-      });
-    }
-
-    function saveImage(item) {
-      return new Promise(function (resolve, reject) {
-        http.get(item.url, function (res) {
-          var imageData = ''
-          res.setEncoding('binary');
-          res.on('data', function (chunk) {
-            imageData += chunk;
-          });
-          res.on('end', function () {
-            fs.writeFileSync(imagePath, imageData, 'binary');
-            resolve({
-              title: item.title,
-              url: item.url
-            });
-          });
-        });
-      });
-    }
-
-    function sendCover(image) {
-      return new Promise(function (resolve, reject) {
-        fs.readFile(imagePath, function (err, buffer) {
-          var cover = {
-            buffer: buffer.toString('base64'),
-            title: image.title,
-            isbn: isbn,
-            url: image.url,
-            coord: coord
+  function checkBook(isbn) {
+    console.log('checkBook', isbn);
+    return new Promise(function (resolve, reject) {
+      pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client) {
+        pg_client.query('SELECT * FROM book where isbn = $1', [isbn], function(err, result) {
+          console.log(result);
+          if (result.rows.length) {
+            var item = result.rows[0];
+            item.isbn = isbn;
+            resolve(item);
+          } else {
+            console.log('rejected')
+            reject(isbn);
           };
-          socket.to(roomId).emit('sendCover', cover);
+        });
+      });
+    });
+  }
+  
+  function fetchBook(isbn) {
+    console.log('fetchBook', isbn);
+    return new Promise(function (resolve, reject) {
+      var par = {
+        'applicationId': process.env.RAKUTEN_APP_ID,
+        'isbnjan': isbn
+      }
+      https.get(RAKUTEN_URL + querystring.stringify(par), function (res) {
+        var body = '';
+        res.on('data', function (chunk) {
+          body += chunk;
+        });
+        res.on('end', function () {
+          var response = JSON.parse(body);
+          if (response.hasOwnProperty('Items') && response.Items.length) {
+            var item = response.Items[0].Item;
+            pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client) {
+              pg_client.query('INSERT INTO book (isbn, title, url) VALUES ($1 ,$2, $3)', [isbn, trimTitle16(item.title), item.mediumImageUrl] ,function(err, result) {
+                console.log('book saved.');
+              });
+            });
+            resolve({
+              title: trimTitle16(item.title),
+              url: item.mediumImageUrl,
+              isbn: isbn
+            });
+          }
+          else {
+            reject(response.error);
+          }
+        });
+      });
+    });
+  }
+
+  function checkImage(item) {
+    console.log('checkImage', item.isbn);
+    var imagePath = path.join('tmp', item.isbn + '.jpg');
+    return new Promise(function (resolve, reject) {
+      if (fs.existsSync(imagePath)) {
+        resolve(item);
+      } else {
+        reject(item);
+      }
+    });
+  };
+ 
+  function saveImage(item) {
+    console.log('saveImage', item.isbn);
+    var imagePath = path.join('tmp', item.isbn + '.jpg');
+    return new Promise(function (resolve, reject) {
+      http.get(item.url, function (res) {
+        var imageData = ''
+        res.setEncoding('binary');
+        res.on('data', function (chunk) {
+          imageData += chunk;
+        });
+        res.on('end', function () {
+          fs.writeFileSync(imagePath, imageData, 'binary');
+          var cover = {
+            title: item.title,
+            isbn: item.isbn
+          };
           resolve(cover);
         });
       });
-    }
+    });
+  }
 
-    function saveBook(cover) {
-      return new Promise(function (resolve, reject) {
-        if (!activeStates[roomId].covers.hasOwnProperty(isbn)) {
-          activeStates[roomId].covers[isbn] = {};
-        }
-        activeStates[roomId].covers[isbn].title = cover.title;
-        activeStates[roomId].covers[isbn].url = cover.url;
-        activeStates[roomId].covers[isbn].coord = coord;
-        writeActiveState();
-        resolve(true);
-      });
+  function getCoord(roomId, isbn) {
+    var coord = {x: 0, y: 0};
+    if (activeStates[roomId].covers.hasOwnProperty(isbn)){
+      coord = activeStates[roomId].covers[isbn].coord;
     }
-  });
+    return coord;
+  }
+  
+  function sendCover(roomId, coord, image) {
+    console.log('sendCover', image.isbn);
+    var imagePath = path.join('tmp', image.isbn + '.jpg');
+    return new Promise(function (resolve, reject) {
+      fs.readFile(imagePath, function (err, buffer) {
+        var cover = {
+          buffer: buffer.toString('base64'),
+          title: image.title,
+          isbn: image.isbn,
+          coord: coord
+        };
+        socket.to(roomId).emit('sendCover', cover);
+        var state = {
+          isbn: cover.isbn,
+          title: cover.title
+        };
+        resolve(state);
+      });
+    });
+  }
+
+  function saveState(roomId, coord, state) {
+    console.log('saveState', state.isbn);
+    return new Promise(function (resolve, reject) {
+      if (!activeStates[roomId].covers.hasOwnProperty(state.isbn)) {
+        activeStates[roomId].covers[state.isbn] = {};
+      }
+      activeStates[roomId].covers[state.isbn].title = state.title;
+      activeStates[roomId].covers[state.isbn].coord = coord;
+      writeActiveState();
+      resolve(true);
+    });
+  }
 
   client.on('removeCover', function (roomId, isbn) {
-    if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].covers.hasOwnProperty(isbn)) {
+    if (activeStates[roomId].covers.hasOwnProperty(isbn)) {
       delete activeStates[roomId].covers[isbn];
     }
     socket.to(roomId).emit('removeCover', isbn);
@@ -256,7 +300,7 @@ var socket = io.on('connection', function (client) {
   });
 
   client.on('placeCover', function (roomId, data) {
-    if (activeStates.hasOwnProperty(roomId) && activeStates[roomId].covers.hasOwnProperty(data.isbn)) {
+    if (activeStates[roomId].covers.hasOwnProperty(data.isbn)) {
       activeStates[roomId].covers[data.isbn].coord = trimCoord({
         x: data.x,
         y: data.y
@@ -268,17 +312,15 @@ var socket = io.on('connection', function (client) {
 
   client.on('save', function (roomId) {
     pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client) {
-      var id = genId(8);
-      var existingIds = [];
-      var query = pg_client.query('select id from ' + DB + ';');
-      query.on('row', function (row) {
-        existingIds.push(row.id);
-      });
-      query.on('end', function (row, err) {
+      var id = genRandId(8);
+      pg_client.query('SELECT id FROM state', function (err, result) {
+        var existingIds = result.rows.map(function (row) {
+          return row.id
+        });
         while (existingIds.indexOf(id) >= 0) {
-          id = genId(8);
+          id = genRandId(8);
         }
-        pg_client.query("insert into " + DB + " (id, covers) values ('" + id + "','" + JSON.stringify(activeStates[roomId]) + "');");
+        pg_client.query('INSERT INTO state (id, state) VALUES ($1 ,$2)', [id, JSON.stringify(activeStates[roomId])]);
         client.emit('save', id);
       });
     });
@@ -286,23 +328,20 @@ var socket = io.on('connection', function (client) {
 
   client.on('load', function (id) {
     pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client) {
-      var existingIds = [];
-      var query = pg_client.query('select id from ' + DB + ';');
-      query.on('row', function (row) {
-        existingIds.push(row.id);
-      });
-      query.on('end', function (row, err) {
+      pg_client.query('SELECT id FROM state', function (err, result) {
+        var existingIds = result.rows.map(function (row) {
+          return row.id
+        });
         if (existingIds.indexOf(id) >= 0) {
-          var _ = pg_client.query("select covers from " + DB + " where id='" + id + "';");
-          _.on('row', function (row) {
-            console.log(row.covers);
+          pg_client.query("SELECT state FROM state WHERE id=($1)", [id], function (err, result) {
+            socket.emit('load', id, result.rows[0].state);
           });
         }
       });
     });
   });
 
-  function genId(len) {
+  function genRandId(len) {
     var c = 'abcdefghijklmnopqrstuvwxyz0123456789';
     var cl = c.length;
     var r = '';

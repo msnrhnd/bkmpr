@@ -44,8 +44,8 @@ $(document).ready(function () {
     var h = $('#modal-panel').outerHeight();
     $('#modal-panel').css({left: $(window).width() / 2 - w / 2, top: $(window).height() / 2 - h / 2});
   }
-  
   modalPanel();
+  
   $('#control-panel').hide();
   $('#sign-in').prop('disabled', true);
 
@@ -226,6 +226,27 @@ $(document).ready(function () {
   socket.on('save', function(id) {
     console.log(id);
   });
+
+  socket.on('load', function(id, state) {
+    $('#this-room').text(id).fadeIn(DURATION);
+    if (!$('#axis .' + id).length) {
+      $('#axis').append($('<div/>').addClass(id));
+      for (var dir of ['e', 'w', 's', 'n']) {
+        $('#axis .' + id).append($('<input/>').attr({type: 'text', maxlength: '16'}).addClass(dir));
+      }
+      cssTextBoxes(pw);
+    }
+    $('#axis .' + id + ' input').fadeIn(DURATION);
+    VERT.animate({opacity: 1}, DURATION);
+    HORZ.animate({opacity: 1}, DURATION);
+    $('#modal-panel').fadeOut(DURATION);
+    checkTextBoxes($('#axis .' + id + ' input'));
+    var covers = state.covers;
+    var axis = state.axis;
+    $.each(covers, function(isbn) {
+      socket.emit('getBook', isbn);
+    })
+  });
   
   $('#plus').click(function () {
     if ($('img').size() > 32) {
@@ -234,7 +255,7 @@ $(document).ready(function () {
     else {
       var isbn = $('#search').val().replace(/-/g, '');
       if (!activeCovers.hasOwnProperty(isbn)) {
-        socket.emit('getBook', thisRoomId, isbn, {x: 0, y: 0});
+        socket.emit('getBook', thisRoomId, isbn);
       }
       $('#search').val('');
     }
@@ -243,7 +264,7 @@ $(document).ready(function () {
   $('#files-o').click(function () {
     var books = ['9784758101509', '9784758101493', '9784758101486', '9784758101479', '9784758101462', '9784758101455'];
     $.each(books, function(i, val){
-      socket.emit('getBook', thisRoomId, val, {x: 0, y: 0});
+      socket.emit('getBook', thisRoomId, val);
     })
   });
   
@@ -260,9 +281,15 @@ $(document).ready(function () {
   }
   
   socket.on('signIn', function (activeStates_roomId) {
-    $.each(activeStates_roomId.covers, function (isbn, book) {
-      socket.emit('getBook', thisRoomId, isbn, book.coord);
-    });
+    var isbns = Object.keys(activeStates_roomId.covers);
+    for (var i = 0; i < isbns.length; i++) {
+      (function(local){
+        setTimeout(function () {
+          console.log(isbns[local]);
+          socket.emit('getBook', thisRoomId, isbns[local]);
+        }, 1000 * local);
+      })(i);
+    }
     for (var dir of ['e', 'w', 's', 'n']) {
       if (activeStates_roomId.axis.hasOwnProperty(dir)) {
         $('#axis .' + thisRoomId + ' .' + dir).val(activeStates_roomId.axis[dir]);
