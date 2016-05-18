@@ -34,6 +34,7 @@ var ROOM_MAX = 6;
 //var COVERS_MAX = 4;
 var RAKUTEN_URL = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
 var activeStates = {};
+var loadedState;
 
 function writeActiveState() {
   fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
@@ -137,7 +138,6 @@ var socket = io.on('connection', function (client) {
   client.on('getBook', function (roomId, isbn) {
     console.log('getBook', isbn);
     Promise.resolve(isbn).then(function (isbn) {
-//      pg.end();
       return checkBook(isbn);
     }).then(function (item) {
       return item;
@@ -165,13 +165,11 @@ var socket = io.on('connection', function (client) {
         if (err) console.log(err);
         pg_client.query('SELECT * FROM book where isbn = $1', [isbn], function(err, result) {
           done();
-//          pg.end();
           if (result.rows.length) {
             var item = result.rows[0];
             item.isbn = isbn;
             resolve(item);
           } else {
-            console.log('rejected')
             reject(isbn);
           };
         });
@@ -197,11 +195,10 @@ var socket = io.on('connection', function (client) {
             var item = response.Items[0].Item;
             pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
               pg_client.query('INSERT INTO book (isbn, title, url) VALUES ($1 ,$2, $3)', [isbn, trimTitle16(item.title), item.mediumImageUrl] ,function(err, result) {
+                done();
                 console.log('book saved.');
               });
-              done();
             });
-            //pg.end();
             resolve({
               title: trimTitle16(item.title),
               url: item.mediumImageUrl,
@@ -251,9 +248,12 @@ var socket = io.on('connection', function (client) {
   }
 
   function getCoord(roomId, isbn) {
+    console.log('getCoord', isbn);
     var coord = {x: 0, y: 0};
-    if (activeStates[roomId].covers.hasOwnProperty(isbn)){
+    if (roomId) {
       coord = activeStates[roomId].covers[isbn].coord;
+    } else {
+      coord = loadedState.covers[isbn].coord;
     }
     return coord;
   }
@@ -269,7 +269,12 @@ var socket = io.on('connection', function (client) {
           isbn: image.isbn,
           coord: coord
         };
-        socket.to(roomId).emit('sendCover', cover);
+        if (roomId) {
+          socket.to(roomId).emit('sendCover', cover);
+        }
+        else {
+          socket.emit('sendCover', cover);
+        }
         var state = {
           isbn: cover.isbn,
           title: cover.title
@@ -319,6 +324,7 @@ var socket = io.on('connection', function (client) {
     pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
       var id = genRandId(8);
       pg_client.query('SELECT id FROM state', function (err, result) {
+        done();
         var existingIds = result.rows.map(function (row) {
           return row.id
         });
@@ -326,28 +332,28 @@ var socket = io.on('connection', function (client) {
           id = genRandId(8);
         }
         pg_client.query('INSERT INTO state (id, state) VALUES ($1 ,$2)', [id, JSON.stringify(activeStates[roomId])]);
+        done();
         client.emit('save', id);
       });
     });
-    done();
-//    pg.end();
   });
 
   client.on('load', function (id) {
     pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
       pg_client.query('SELECT id FROM state', function (err, result) {
+        done();
         var existingIds = result.rows.map(function (row) {
           return row.id
         });
         if (existingIds.indexOf(id) >= 0) {
           pg_client.query("SELECT state FROM state WHERE id=($1)", [id], function (err, result) {
-            socket.emit('load', id, result.rows[0].state);
+            done();
+            loadedState = result.rows[0].state;
+            socket.emit('load', id, loadedState);
           });
         }
       });
     });
-    done();
-    //pg.end();
   });
 
   function genRandId(len) {

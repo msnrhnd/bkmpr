@@ -177,7 +177,7 @@ $(document).ready(function () {
     checkTextBoxes($(e.currentTarget));
   });
 
-  Raphael.fn.setCover = function (src, title, isbn, coord) {
+  Raphael.fn.setCover = function (src, title, isbn, coord, handle) {
     function trimTitle16 (str) {
       var trimmed = str;
       if (trimmed.length > 16) {
@@ -213,7 +213,9 @@ $(document).ready(function () {
       cover.attr({
         'cursor': 'pointer'
       });
-      cover.setMouseHandlers();
+      if (handle) {
+        cover.setMouseHandlers();
+      }
       cover.transform('t' + inv(coord).x + ',' + inv(coord).y);
     }
     return cover;
@@ -244,7 +246,7 @@ $(document).ready(function () {
     var covers = state.covers;
     var axis = state.axis;
     $.each(covers, function(isbn) {
-      socket.emit('getBook', isbn);
+      socket.emit('getBook', null, isbn);
     })
   });
   
@@ -314,9 +316,11 @@ $(document).ready(function () {
   });
   
   socket.on('sendCover', function (data) {
+    var handle = thisRoomId ? true: false;
     if (!activeCovers.hasOwnProperty(data.isbn)){
       var src = 'data:image/jpeg;base64,' + data.buffer;
-      var new_cover = paper.setCover(src, data.title, data.isbn, data.coord);
+      var new_cover = paper.setCover(src, data.title, data.isbn, data.coord, handle);
+      
       activeCovers[data.isbn] = new_cover;
     }
   });
