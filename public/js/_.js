@@ -121,6 +121,7 @@ $(document).ready(function () {
     VERT.animate({opacity: 0}, DURATION);
     HORZ.animate({opacity: 0}, DURATION);
     $('#modal-panel').fadeIn(DURATION);
+    thisRoomId = undefined;
     history.pushState('', '', '/');
   });
 
@@ -230,21 +231,26 @@ $(document).ready(function () {
   });
 
   socket.on('load', function(id, state) {
+    var covers = state.covers;
+    var axis = state.axis;
     $('#this-room').text(id).fadeIn(DURATION);
+    $('').fadeIn(DURATION);
     if (!$('#axis .' + id).length) {
       $('#axis').append($('<div/>').addClass(id));
       for (var dir of ['e', 'w', 's', 'n']) {
-        $('#axis .' + id).append($('<input/>').attr({type: 'text', maxlength: '16'}).addClass(dir));
+        $('#axis .' + id).append($('<input/>').attr({type: 'text', maxlength: '16'}).addClass(dir).prop('disabled', true));
+        if (axis.hasOwnProperty(dir)) {
+          $('#axis .' + id + ' .' + dir).val(axis[dir]);
+        }
+        checkTextBoxes($('#axis .' + id + ' .' + dir));
       }
-      cssTextBoxes(pw);
     }
+    cssTextBoxes(pw);
     $('#axis .' + id + ' input').fadeIn(DURATION);
     VERT.animate({opacity: 1}, DURATION);
     HORZ.animate({opacity: 1}, DURATION);
     $('#modal-panel').fadeOut(DURATION);
     checkTextBoxes($('#axis .' + id + ' input'));
-    var covers = state.covers;
-    var axis = state.axis;
     $.each(covers, function(isbn) {
       socket.emit('getBook', null, isbn);
     })
@@ -276,13 +282,15 @@ $(document).ready(function () {
   
   socket.on('signIn', function (activeStates_roomId) {
     var isbns = Object.keys(activeStates_roomId.covers);
-    for (var i = 0; i < isbns.length; i++) {
+/*    for (var i = 0; i < isbns.length; i++) {
       (function(local){
         setTimeout(function () {
-          console.log(isbns[local]);
           socket.emit('getBook', thisRoomId, isbns[local]);
         }, 400 * local);
       })(i);
+      } */
+    for (var isbn of isbns) {
+      socket.emit('getBook', thisRoomId, isbn);
     }
     for (var dir of ['e', 'w', 's', 'n']) {
       if (activeStates_roomId.axis.hasOwnProperty(dir)) {
@@ -357,18 +365,23 @@ $(document).ready(function () {
       _dx = 0;
       _dy = 0;
       d = 0;
-      socket.emit('placeCover', thisRoomId, new_coord);
+      if (new_coord.x > 128 || new_coord.y > 128) {
+        socket.emit('removeCover', thisRoomId, me.isbn);
+      } else {
+        socket.emit('placeCover', thisRoomId, new_coord);
+      }
       socket.emit('go', thisRoomId);
     };
     this.drag(moveFnc, startFnc, endFnc);
     this.mousedown(function () {
-      start = new Date();
+      me.start = new Date();
     });
     this.mouseup(function () {
-      end = new Date();
-      if ((end - start) > 1500 && d < 40) {
+      me.end = new Date();
+      if (me.start && (me.end - me.start) > 1500 && d < 40) {
         socket.emit('removeCover', thisRoomId, me.isbn);
       }
+      me.start = me.end = undefined;
     });
   }
   
