@@ -146,7 +146,7 @@ var socket = io.on('connection', function (client) {
     }).then(function (image) {
       return checkImage(image);
     }, function (error) {
-      return false;
+      setDummy(roomId, isbn);
     }).then(function (item) {
       return item;
     }, function (item) {
@@ -206,10 +206,26 @@ var socket = io.on('connection', function (client) {
             });
           }
           else {
-            reject(response.error);
+            reject();
           }
         });
       });
+    });
+  }
+
+  function setDummy(roomId, isbn) {
+    var isbn = '00000000';
+    var coord = {x: 0, y: 0};
+    console.log('setDummy', isbn);
+    fs.readFile('public/images/dummy.png', function (err, buffer) {
+      var cover = {
+        buffer: buffer.toString('base64'),
+        title: isbn,
+        isbn: isbn,
+        coord: coord
+      };
+      saveState(roomId, coord, {isbn: isbn, title: isbn});
+      socket.to(roomId).emit('sendCover', cover);
     });
   }
 
@@ -251,7 +267,9 @@ var socket = io.on('connection', function (client) {
     console.log('getCoord', isbn);
     var coord = {x: 0, y: 0};
     if (roomId) {
-      coord = activeStates[roomId].covers[isbn].coord;
+      if(activeStates[roomId].covers.hasOwnProperty(isbn)){
+        coord = activeStates[roomId].covers[isbn].coord;
+      }
     } else {
       coord = loadedState.covers[isbn].coord;
     }
@@ -297,6 +315,10 @@ var socket = io.on('connection', function (client) {
     });
   }
 
+  function sendMessage(mes) {
+    socket.emit('message', mes);
+  }
+  
   client.on('removeCover', function (roomId, isbn) {
     if (activeStates[roomId].covers.hasOwnProperty(isbn)) {
       delete activeStates[roomId].covers[isbn];

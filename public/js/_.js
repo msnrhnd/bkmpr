@@ -251,25 +251,17 @@ $(document).ready(function () {
   });
   
   $('#plus').click(function () {
-    if ($('img').size() > 32) {
-      message('Too much covers!', 'not-found');
+    if (activeCovers.hasOwnProperty(isbn)) {
+      console.log('duplicated');
+      message('Duplicated');
     }
     else {
       var isbn = $('#search').val().replace(/-/g, '');
-      if (!activeCovers.hasOwnProperty(isbn)) {
-        socket.emit('getBook', thisRoomId, isbn);
-      }
-      $('#search').val('');
+      socket.emit('getBook', thisRoomId, isbn);
     }
+    $('#search').val('');
   });
 
-  $('#files-o').click(function () {
-    var books = ['9784758101509', '9784758101493', '9784758101486', '9784758101479', '9784758101462', '9784758101455'];
-    $.each(books, function(i, val){
-      socket.emit('getBook', thisRoomId, val);
-    })
-  });
-  
   function message(viewbox, mes, type) {
     var $mes = $('<message/>').addClass(type).css({
       top: viewbox[2] / 2 - 20,
@@ -341,8 +333,8 @@ $(document).ready(function () {
     activeCovers[data.isbn].coord = {x: data.x, y: data.y};
   });
 
-  socket.on('emitLog', function (serverLog) {
-    console.log(serverLog);
+  socket.on('message', function(mes) {
+    message(mes);
   });
   
   Raphael.st.setMouseHandlers = function () {
