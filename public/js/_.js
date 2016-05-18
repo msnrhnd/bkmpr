@@ -69,6 +69,22 @@ $(document).ready(function () {
     history.pushState('', '', '?room=' + thisRoomId);
   }
 
+  function signOut(thisRoomId) {
+    socket.emit('signOut', thisRoomId);
+    $('#control-panel').fadeOut(DURATION);
+    $('#this-room').fadeOut(DURATION);
+    $('#axis .' + thisRoomId + ' input').fadeOut(DURATION);
+    $.each(activeCovers, function (k, v) {
+      activeCovers[k].remove();
+      delete activeCovers[k];
+    });
+    VERT.animate({opacity: 0}, DURATION);
+    HORZ.animate({opacity: 0}, DURATION);
+    $('#modal-panel').fadeIn(DURATION);
+    thisRoomId = undefined;
+    history.pushState('', '', '/');
+  }
+  
   if (getQueryString().hasOwnProperty('room')) {
     signIn(getQueryString().room);
   }
@@ -110,19 +126,7 @@ $(document).ready(function () {
   })();
 
   $('#sign-out').click(function () {
-    socket.emit('signOut', thisRoomId);
-    $('#control-panel').fadeOut(DURATION);
-    $('#this-room').fadeOut(DURATION);
-    $('#axis .' + thisRoomId + ' input').fadeOut(DURATION);
-    $.each(activeCovers, function (k, v) {
-      activeCovers[k].remove();
-      delete activeCovers[k];
-    });
-    VERT.animate({opacity: 0}, DURATION);
-    HORZ.animate({opacity: 0}, DURATION);
-    $('#modal-panel').fadeIn(DURATION);
-    thisRoomId = undefined;
-    history.pushState('', '', '/');
+    signOut(thisRoomId);
   });
 
   socket.on('vacancy', function (boolean) {
@@ -280,15 +284,12 @@ $(document).ready(function () {
     return false;
   }
   
+/*  socket.on('restrict', function () {
+    signOut(thisRoomId);
+  }); */
+  
   socket.on('signIn', function (activeStates_roomId) {
     var isbns = Object.keys(activeStates_roomId.covers);
-/*    for (var i = 0; i < isbns.length; i++) {
-      (function(local){
-        setTimeout(function () {
-          socket.emit('getBook', thisRoomId, isbns[local]);
-        }, 400 * local);
-      })(i);
-      } */
     for (var isbn of isbns) {
       socket.emit('getBook', thisRoomId, isbn);
     }

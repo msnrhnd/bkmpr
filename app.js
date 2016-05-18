@@ -31,7 +31,6 @@ app.configure('development', function () {
 app.get('/', routes.index);
 
 var ROOM_MAX = 6;
-//var COVERS_MAX = 4;
 var RAKUTEN_URL = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
 var activeStates = {};
 var loadedState;
@@ -64,6 +63,9 @@ function trimCoord(coord) {
 
 var socket = io.on('connection', function (client) {
   console.log('connected');
+  if (client.conn.server.clientsCount > 2) {
+    client.emit('restrict', true);
+  }
   var existingRooms = [];
   for (var roomId in activeStates) {
     client.emit('appendRoom', roomId);
