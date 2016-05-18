@@ -31,7 +31,7 @@ app.configure('development', function () {
 app.get('/', routes.index);
 
 var ROOM_MAX = 6;
-var COVERS_MAX = 4;
+//var COVERS_MAX = 4;
 var RAKUTEN_URL = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
 var activeStates = {};
 
@@ -137,6 +137,7 @@ var socket = io.on('connection', function (client) {
   client.on('getBook', function (roomId, isbn) {
     console.log('getBook', isbn);
     Promise.resolve(isbn).then(function (isbn) {
+//      pg.end();
       return checkBook(isbn);
     }).then(function (item) {
       return item;
@@ -156,13 +157,15 @@ var socket = io.on('connection', function (client) {
       return saveState(roomId, getCoord(roomId, isbn), state);
     });
   });
-
+  
   function checkBook(isbn) {
     console.log('checkBook', isbn);
     return new Promise(function (resolve, reject) {
-      pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client) {
+      pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
+        if (err) console.log(err);
         pg_client.query('SELECT * FROM book where isbn = $1', [isbn], function(err, result) {
-          console.log(result);
+          done();
+//          pg.end();
           if (result.rows.length) {
             var item = result.rows[0];
             item.isbn = isbn;
@@ -192,11 +195,13 @@ var socket = io.on('connection', function (client) {
           var response = JSON.parse(body);
           if (response.hasOwnProperty('Items') && response.Items.length) {
             var item = response.Items[0].Item;
-            pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client) {
+            pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
               pg_client.query('INSERT INTO book (isbn, title, url) VALUES ($1 ,$2, $3)', [isbn, trimTitle16(item.title), item.mediumImageUrl] ,function(err, result) {
                 console.log('book saved.');
               });
+              done();
             });
+            //pg.end();
             resolve({
               title: trimTitle16(item.title),
               url: item.mediumImageUrl,
@@ -311,7 +316,7 @@ var socket = io.on('connection', function (client) {
   });
 
   client.on('save', function (roomId) {
-    pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client) {
+    pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
       var id = genRandId(8);
       pg_client.query('SELECT id FROM state', function (err, result) {
         var existingIds = result.rows.map(function (row) {
@@ -324,10 +329,12 @@ var socket = io.on('connection', function (client) {
         client.emit('save', id);
       });
     });
+    done();
+//    pg.end();
   });
 
   client.on('load', function (id) {
-    pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client) {
+    pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
       pg_client.query('SELECT id FROM state', function (err, result) {
         var existingIds = result.rows.map(function (row) {
           return row.id
@@ -339,6 +346,8 @@ var socket = io.on('connection', function (client) {
         }
       });
     });
+    done();
+    //pg.end();
   });
 
   function genRandId(len) {

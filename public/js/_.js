@@ -287,7 +287,7 @@ $(document).ready(function () {
         setTimeout(function () {
           console.log(isbns[local]);
           socket.emit('getBook', thisRoomId, isbns[local]);
-        }, 1000 * local);
+        }, 400 * local);
       })(i);
     }
     for (var dir of ['e', 'w', 's', 'n']) {
