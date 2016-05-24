@@ -1,14 +1,14 @@
 var express = require('express'),
-    http = require('http'),
-    https = require('https'),
-    path = require('path'),
-    fs = require('fs'),
-    querystring = require('querystring'),
-    app = express(),
-    server = http.createServer(app),
-    routes = require('./routes'),
-    io = require('socket.io').listen(server),
-    pg = require('pg');
+  http = require('http'),
+  https = require('https'),
+  path = require('path'),
+  fs = require('fs'),
+  querystring = require('querystring'),
+  app = express(),
+  server = http.createServer(app),
+  routes = require('./routes'),
+  io = require('socket.io').listen(server),
+  pg = require('pg');
 
 var port = Number(process.env.PORT || 8080);
 server.listen(port);
@@ -95,7 +95,7 @@ var socket = io.on('connection', function (client) {
       client.emit('vacancy', (existingRooms.length < ROOM_MAX));
       client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
     }
-  })
+  });
 
   client.on('signOut', function (roomId) {
     client.emit('vacancy', (existingRooms.length < ROOM_MAX));
@@ -133,8 +133,8 @@ var socket = io.on('connection', function (client) {
   client.on('axis', function (roomId, dir, val) {
     activeStates[roomId].axis[dir] = val;
     writeActiveState();
-    client.emit('axis', dir, val);
-    client.broadcast.emit('axis', dir, val);
+    client.emit('axis', roomId, dir, val);
+    client.broadcast.emit('axis', roomId, dir, val);
   });
 
   client.on('getBook', function (roomId, val) {
@@ -151,28 +151,28 @@ var socket = io.on('connection', function (client) {
         }).then(function (item) {
           return insertDB(item);
         });
-      } else if (checked.type = 'title') {
-        return Promise.resolve().then(function() {
-          return setDummy(val);
-        });
+      }
+      else if (checked.type = 'title') {
+        return setDummy(val);
       }
     }).then(function (item) {
       if (fs.existsSync(path.join('tmp', val + '.jpg'))) {
         return Promise.resolve(item);
-      } else {
+      }
+      else {
         return Promise.resolve().then(function () {
           return saveTmpImage(item.isbn);
-        }).then(function() {
+        }).then(function () {
           return Promise.resolve(item);
         });
       }
     }).then(function (item) {
       return sendCover(roomId, getCoord(roomId, val), item);
-    }).then(function(state) {
+    }).then(function (state) {
       saveState(roomId, state);
     });
   });
-  
+
   function checkDB(val) {
     console.log('checkDB', val);
     return new Promise(function (resolve) {
@@ -185,9 +185,20 @@ var socket = io.on('connection', function (client) {
             exists = result.rows.length ? true : false;
             if (exists) {
               var item = result.rows[0];
-              resolve({type: type, exists: exists, isbn: val, title: item.title, url: item.url});
-            } else {
-              resolve({type: type, exists: exists, isbn: val});
+              resolve({
+                type: type,
+                exists: exists,
+                isbn: val,
+                title: item.title,
+                url: item.url
+              });
+            }
+            else {
+              resolve({
+                type: type,
+                exists: exists,
+                isbn: val
+              });
             }
           });
         }
@@ -198,16 +209,27 @@ var socket = io.on('connection', function (client) {
             exists = result.rows.length ? true : false;
             if (exists) {
               var item = result.rows[0];
-              resolve({type: type, exists: exists, isbn: item.isbn, title: item.title, url: item.url});
-            } else {
-              resolve({type: type, exists: exists, isbn: val});
+              resolve({
+                type: type,
+                exists: exists,
+                isbn: item.isbn,
+                title: item.title,
+                url: item.url
+              });
+            }
+            else {
+              resolve({
+                type: type,
+                exists: exists,
+                isbn: val
+              });
             }
           });
         }
       });
     });
   }
-  
+
   function fetchBook(isbn) {
     console.log('fetchBook', isbn);
     return new Promise(function (resolve, reject) {
@@ -251,9 +273,10 @@ var socket = io.on('connection', function (client) {
       });
     });
   }
-  
+
   function setDummy(val) {
     console.log('setDummy', val);
+
     function fillZero(number, digits) {
       var zeros = new Array(digits + 1).join('0');
       return (zeros + number).slice(-digits);
@@ -273,13 +296,17 @@ var socket = io.on('connection', function (client) {
           }
           pg_client.query('INSERT INTO book (isbn, title, url) VALUES ($1 ,$2, $3)', [isbn, val, undefined], function (err, result) {
             done();
-            resolve({isbn: isbn, title: val, url: undefined});
+            resolve({
+              isbn: isbn,
+              title: val,
+              url: undefined
+            });
           });
         });
       });
     });
   }
- 
+
   function saveTmpImage(isbn) {
     console.log('saveTmpImage', isbn);
     return new Promise(function (resolve, reject) {
@@ -307,12 +334,16 @@ var socket = io.on('connection', function (client) {
 
   function getCoord(roomId, isbn) {
     console.log('getCoord', isbn);
-    var coord = {x: 0, y: 0};
+    var coord = {
+      x: 0,
+      y: 0
+    };
     if (roomId) {
-      if(activeStates[roomId].covers.hasOwnProperty(isbn)){
+      if (activeStates[roomId].covers.hasOwnProperty(isbn)) {
         coord = activeStates[roomId].covers[isbn].coord;
       }
-    } else {
+    }
+    else {
       coord = loadedState.covers[isbn].coord;
     }
     return coord;
@@ -361,7 +392,7 @@ var socket = io.on('connection', function (client) {
   function sendMessage(mes) {
     socket.emit('message', mes);
   }
-  
+
   client.on('removeCover', function (roomId, isbn) {
     if (activeStates[roomId].covers.hasOwnProperty(isbn)) {
       delete activeStates[roomId].covers[isbn];

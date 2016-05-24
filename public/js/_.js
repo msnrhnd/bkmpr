@@ -5,12 +5,25 @@ $(document).ready(function () {
   var paper = Raphael('main-panel');
   paper.setViewBox(0, 0, $(window).width(), $(window).height(), true);
   paper.setSize('100%', '100%');
-  var COORD = {x: 256, y: 256};
+  var COORD = {
+    x: 256,
+    y: 256
+  };
   var WIDTH = paper._viewBox[2];
   var HEIGHT = paper._viewBox[3];
   var UNIT = Math.sqrt(WIDTH * HEIGHT);
-  var VERT = paper.path('M' + WIDTH / 2 + ' ' + UNIT / 32 + 'L' + WIDTH / 2 + ' ' + (HEIGHT - UNIT / 32)).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
-  var HORZ = paper.path('M' + UNIT / 32 + ' ' + HEIGHT / 2 + 'L' + (WIDTH - UNIT / 32) + ' ' + HEIGHT / 2).attr({'arrow-end': 'block-wide-wide', 'arrow-start': 'block-wide-wide', 'stroke-width': 2, opacity: 0});
+  var VERT = paper.path('M' + WIDTH / 2 + ' ' + UNIT / 32 + 'L' + WIDTH / 2 + ' ' + (HEIGHT - UNIT / 32)).attr({
+    'arrow-end': 'block-wide-wide',
+    'arrow-start': 'block-wide-wide',
+    'stroke-width': 2,
+    opacity: 0
+  });
+  var HORZ = paper.path('M' + UNIT / 32 + ' ' + HEIGHT / 2 + 'L' + (WIDTH - UNIT / 32) + ' ' + HEIGHT / 2).attr({
+    'arrow-end': 'block-wide-wide',
+    'arrow-start': 'block-wide-wide',
+    'stroke-width': 2,
+    opacity: 0
+  });
   var DURATION = 200;
   var pw = 1;
 
@@ -26,26 +39,30 @@ $(document).ready(function () {
         result[parKey] = parVal;
       }
       return result;
-    } else {
+    }
+    else {
       return false;
     }
   }
 
   function setQueryString(par) {
     var result = '';
-    $.each(par, function(k, v) {
+    $.each(par, function (k, v) {
       result += k + '=' + v + '&';
     });
     return result.substr(0, result.length - 1);
   }
 
-  function modalPanel () {
+  function modalPanel() {
     var w = $('#modal-panel').outerWidth();
     var h = $('#modal-panel').outerHeight();
-    $('#modal-panel').css({left: $(window).width() / 2 - w / 2, top: $(window).height() / 2 - h / 2});
+    $('#modal-panel').css({
+      left: $(window).width() / 2 - w / 2,
+      top: $(window).height() / 2 - h / 2
+    });
   }
   modalPanel();
-  
+
   $('#control-panel').hide();
   $('#sign-in').prop('disabled', true);
 
@@ -54,15 +71,22 @@ $(document).ready(function () {
     $('#this-room').text(thisRoomId).fadeIn(DURATION);
     if (!$('#axis .' + roomId).length) {
       $('#axis').append($('<div/>').addClass(roomId));
-      for (var dir of ['e', 'w', 's', 'n']) {
-        $('#axis .' + roomId).append($('<input/>').attr({type: 'text', maxlength: '16'}).addClass(dir));
+      for (var dir of['e', 'w', 's', 'n']) {
+        $('#axis .' + roomId).append($('<input/>').attr({
+          type: 'text',
+          maxlength: '16'
+        }).addClass(dir));
       }
       cssTextBoxes(pw);
     }
     $('#control-panel').fadeIn(DURATION);
     $('#axis .' + thisRoomId + ' input').fadeIn(DURATION);
-    VERT.animate({opacity: 1}, DURATION);
-    HORZ.animate({opacity: 1}, DURATION);
+    VERT.animate({
+      opacity: 1
+    }, DURATION);
+    HORZ.animate({
+      opacity: 1
+    }, DURATION);
     $('#modal-panel').fadeOut(DURATION);
     checkTextBoxes($('#axis .' + thisRoomId + ' input'));
     socket.emit('signIn', thisRoomId);
@@ -78,36 +102,41 @@ $(document).ready(function () {
       activeCovers[k].remove();
       delete activeCovers[k];
     });
-    VERT.animate({opacity: 0}, DURATION);
-    HORZ.animate({opacity: 0}, DURATION);
+    VERT.animate({
+      opacity: 0
+    }, DURATION);
+    HORZ.animate({
+      opacity: 0
+    }, DURATION);
     $('#modal-panel').fadeIn(DURATION);
     thisRoomId = undefined;
     history.pushState('', '', '/');
   }
-  
+
   if (getQueryString().hasOwnProperty('room')) {
     signIn(getQueryString().room);
   }
-  
+
   if (getQueryString().hasOwnProperty('load')) {
     socket.emit('load', getQueryString().load);
   }
-  
+
   $(document).on('keyup', '#room', function () {
     $('#room').val($('#room').val().replace(/[^a-zA-Z0-9_\-]/, ''));
     $('#sign-in').prop('disabled', !Boolean($('#room').val()));
   });
 
-  $(document).on('keyup', '#search', function(e) {
+  $(document).on('keyup', '#search', function (e) {
     var escaped = $(e.currentTarget).val().replace(/[$="' (){}\.,\[\]]/, '');
     $(e.currentTarget).val(escaped);
     if (escaped) {
       $('#search').siblings('#plus').prop('disabled', false);
-    } else {
+    }
+    else {
       $('#search').siblings('#plus').prop('disabled', true);
     }
   });
-  
+
   $('#sign-in').click(function () {
     if ($('#room').val()) {
       signIn($('#room').val());
@@ -118,12 +147,12 @@ $(document).ready(function () {
     signIn($(e.currentTarget).text());
   });
 
-  (function(){
+  (function () {
     var start, end;
-    $(document).on('mousedown', '.remove-room', function(e){
+    $(document).on('mousedown', '.remove-room', function (e) {
       start = new Date();
     });
-    $(document).on('mouseup', '.remove-room', function(e){
+    $(document).on('mouseup', '.remove-room', function (e) {
       end = new Date();
       if (end - start > 1500) {
         socket.emit('removeRoom', $(e.currentTarget).siblings('.enter-room').text());
@@ -138,7 +167,7 @@ $(document).ready(function () {
   socket.on('vacancy', function (boolean) {
     $('#room').prop('disabled', !boolean);
   });
-  
+
   socket.on('appendRoom', function (roomId) {
     var existingRoom = $.map($('.enter-room'), function (elem) {
       return $(elem).text();
@@ -155,20 +184,43 @@ $(document).ready(function () {
     });
   });
 
-  function cssTextBoxes (pw) {
-    $('#axis input').css({width: UNIT * pw / 4, fontSize: UNIT * pw / 48});
-    $('footer').css({position: 'absolute', top: (HEIGHT - UNIT / 32)* pw, fontSize: UNIT / 64 * pw});
-    $('#this-room').css({fontSize: UNIT / 64 * pw});
-    $('#axis .n').css({top: 0, left: (WIDTH / 2 - UNIT / 8) * pw});
-    $('#axis .s').css({top: (HEIGHT - UNIT / 32) * pw, left: (WIDTH / 2 - UNIT / 8) * pw});
-    $('#axis .e').css({top: HEIGHT * pw / 2, left: (WIDTH - UNIT / 4) * pw, textAlign: 'right'});
-    $('#axis .w').css({top: HEIGHT * pw / 2, left: 0});
+  function cssTextBoxes(pw) {
+    $('#axis input').css({
+      width: UNIT * pw / 4,
+      fontSize: UNIT * pw / 48
+    });
+    $('footer').css({
+      position: 'absolute',
+      top: (HEIGHT - UNIT / 32) * pw,
+      fontSize: UNIT / 64 * pw
+    });
+    $('#this-room').css({
+      fontSize: UNIT / 64 * pw
+    });
+    $('#axis .n').css({
+      top: 0,
+      left: (WIDTH / 2 - UNIT / 8) * pw
+    });
+    $('#axis .s').css({
+      top: (HEIGHT - UNIT / 32) * pw,
+      left: (WIDTH / 2 - UNIT / 8) * pw
+    });
+    $('#axis .e').css({
+      top: HEIGHT * pw / 2,
+      left: (WIDTH - UNIT / 4) * pw,
+      textAlign: 'right'
+    });
+    $('#axis .w').css({
+      top: HEIGHT * pw / 2,
+      left: 0
+    });
   }
 
-  function checkTextBoxes ($input) {
+  function checkTextBoxes($input) {
     if ($input.val()) {
       $input.css('border', 'none');
-    } else {
+    }
+    else {
       $input.css('border-bottom', '1px solid black');
     }
   }
@@ -189,7 +241,7 @@ $(document).ready(function () {
   });
 
   Raphael.fn.setCover = function (src, title, isbn, coord, handle) {
-    function trimTitle16 (str) {
+    function trimTitle16(str) {
       var trimmed = str;
       if (trimmed.length > 16) {
         trimmed = str.slice(0, 15) + '…';
@@ -211,16 +263,13 @@ $(document).ready(function () {
       var h = w * img.height / img.width;
       var margin = UNIT / 96;
       cover.push(
-        me.rect(- w / 2 - margin / 2, - h / 2 - margin / 2, w + margin, h + margin).attr({
-          'stroke': 'black',
-          'fill': 'white',
-          'stroke-width': 1
-        }),
-        me.image(src, - w / 2, - h / 2, w, h),
-        me.text(0, h / 2 + margin * 4, trimTitle16(title)).attr({
-          'font-size': margin * 2
-        })
-      );
+      me.rect(-w / 2 - margin / 2, -h / 2 - margin / 2, w + margin, h + margin).attr({
+        'stroke': 'black',
+        'fill': 'white',
+        'stroke-width': 1
+      }), me.image(src, -w / 2, -h / 2, w, h), me.text(0, h / 2 + margin * 4, trimTitle16(title)).attr({
+        'font-size': margin * 2
+      }));
       cover.attr({
         'cursor': 'pointer'
       });
@@ -236,19 +285,22 @@ $(document).ready(function () {
     socket.emit('save', thisRoomId);
   });
 
-  socket.on('save', function(id) {
+  socket.on('save', function (id) {
     console.log(id);
   });
 
-  socket.on('load', function(id, state) {
+  socket.on('load', function (id, state) {
     var covers = state.covers;
     var axis = state.axis;
     $('#this-room').text(id).fadeIn(DURATION);
     $('').fadeIn(DURATION);
     if (!$('#axis .' + id).length) {
       $('#axis').append($('<div/>').addClass(id));
-      for (var dir of ['e', 'w', 's', 'n']) {
-        $('#axis .' + id).append($('<input/>').attr({type: 'text', maxlength: '16'}).addClass(dir).prop('disabled', true));
+      for (var dir of['e', 'w', 's', 'n']) {
+        $('#axis .' + id).append($('<input/>').attr({
+          type: 'text',
+          maxlength: '16'
+        }).addClass(dir).prop('disabled', true));
         if (axis.hasOwnProperty(dir)) {
           $('#axis .' + id + ' .' + dir).val(axis[dir]);
         }
@@ -257,15 +309,19 @@ $(document).ready(function () {
     }
     cssTextBoxes(pw);
     $('#axis .' + id + ' input').fadeIn(DURATION);
-    VERT.animate({opacity: 1}, DURATION);
-    HORZ.animate({opacity: 1}, DURATION);
+    VERT.animate({
+      opacity: 1
+    }, DURATION);
+    HORZ.animate({
+      opacity: 1
+    }, DURATION);
     $('#modal-panel').fadeOut(DURATION);
     checkTextBoxes($('#axis .' + id + ' input'));
-    $.each(covers, function(isbn) {
+    $.each(covers, function (isbn) {
       socket.emit('getBook', null, isbn);
     })
   });
-  
+
   $('#plus').click(function () {
     var val = $('#search').val().replace(/-/, '');
     if (activeCovers.hasOwnProperty(val)) {
@@ -290,17 +346,17 @@ $(document).ready(function () {
     });
     return false;
   }
-  
+
 /*  socket.on('restrict', function () {
     signOut(thisRoomId);
   }); */
-  
+
   socket.on('signIn', function (activeStates_roomId) {
     var isbns = Object.keys(activeStates_roomId.covers);
     for (var isbn of isbns) {
       socket.emit('getBook', thisRoomId, isbn);
     }
-    for (var dir of ['e', 'w', 's', 'n']) {
+    for (var dir of['e', 'w', 's', 'n']) {
       if (activeStates_roomId.axis.hasOwnProperty(dir)) {
         $('#axis .' + thisRoomId + ' .' + dir).val(activeStates_roomId.axis[dir]);
       }
@@ -308,33 +364,34 @@ $(document).ready(function () {
     }
   });
 
-  socket.on('axis', function (dir, val) {
-    $('#axis .' + thisRoomId + ' .' + dir).val(val);
-    checkTextBoxes($('#axis .' + thisRoomId + ' .' + dir));
+  socket.on('axis', function (roomId, dir, val) {
+    if (roomId == thisRoomId) {
+      $('#axis .' + thisRoomId + ' .' + dir).val(val);
+      checkTextBoxes($('#axis .' + thisRoomId + ' .' + dir));
+    }
   });
-  
+
   socket.on('wait', function () {
     $('button').prop('disabled', true);
     $('input').prop('disabled', true);
   });
 
-  socket.on('go', function() {
+  socket.on('go', function () {
     $('button').prop('disabled', false);
     $('input').prop('disabled', false);
   });
-  
+
   socket.on('sendCover', function (data) {
-    var handle = thisRoomId ? true: false;
-    if (!activeCovers.hasOwnProperty(data.isbn)){
+    var handle = thisRoomId ? true : false;
+    if (!activeCovers.hasOwnProperty(data.isbn)) {
       var src = 'data:image/jpeg;base64,' + data.buffer;
       var new_cover = paper.setCover(src, data.title, data.isbn, data.coord, handle);
-      
       activeCovers[data.isbn] = new_cover;
     }
   });
 
   socket.on('removeCover', function (isbn) {
-    if (activeCovers.hasOwnProperty(isbn)){
+    if (activeCovers.hasOwnProperty(isbn)) {
       activeCovers[isbn].remove();
       delete activeCovers[isbn];
     }
@@ -342,17 +399,20 @@ $(document).ready(function () {
 
   socket.on('moveCover', function (data) {
     var cover = activeCovers[data.isbn];
-    cover.transform('t' + (inv(cover.coord).x + data.dx / COORD.x * paper._viewBox[2]) + ',' + ( inv(cover.coord).y - data.dy / COORD.y * paper._viewBox[3]));
-  });
-  
-  socket.on('placeCover', function (data) {
-    activeCovers[data.isbn].coord = {x: data.x, y: data.y};
+    cover.transform('t' + (inv(cover.coord).x + data.dx / COORD.x * paper._viewBox[2]) + ',' + (inv(cover.coord).y - data.dy / COORD.y * paper._viewBox[3]));
   });
 
-  socket.on('message', function(mes) {
+  socket.on('placeCover', function (data) {
+    activeCovers[data.isbn].coord = {
+      x: data.x,
+      y: data.y
+    };
+  });
+
+  socket.on('message', function (mes) {
     message(mes);
   });
-  
+
   Raphael.st.setMouseHandlers = function () {
     var me = this;
     var _dx = 0;
@@ -360,7 +420,11 @@ $(document).ready(function () {
     var d = 0;
     var start, end;
     moveFnc = function (dx, dy) {
-      socket.emit('moveCover', thisRoomId, {isbn: me.isbn, dx: Math.round(dx / paper._viewBox[2] * COORD.x), dy: Math.round(-dy / paper._viewBox[3] * COORD.y)});
+      socket.emit('moveCover', thisRoomId, {
+        isbn: me.isbn,
+        dx: Math.round(dx / paper._viewBox[2] * COORD.x),
+        dy: Math.round(-dy / paper._viewBox[3] * COORD.y)
+      });
       _dx = dx;
       _dy = dy;
       d += Math.abs(_dx) + Math.abs(_dy);
@@ -369,13 +433,18 @@ $(document).ready(function () {
       socket.emit('wait', thisRoomId);
     };
     endFnc = function () {
-      var new_coord = {isbn: me.isbn, x: Math.round(me.coord.x + _dx / paper._viewBox[2] * COORD.x), y: Math.round(me.coord.y - _dy / paper._viewBox[3] * COORD.y)}
+      var new_coord = {
+        isbn: me.isbn,
+        x: Math.round(me.coord.x + _dx / paper._viewBox[2] * COORD.x),
+        y: Math.round(me.coord.y - _dy / paper._viewBox[3] * COORD.y)
+      }
       _dx = 0;
       _dy = 0;
       d = 0;
       if (new_coord.x > 128 || new_coord.y > 128) {
         socket.emit('removeCover', thisRoomId, me.isbn);
-      } else {
+      }
+      else {
         socket.emit('placeCover', thisRoomId, new_coord);
       }
       socket.emit('go', thisRoomId);
@@ -392,21 +461,27 @@ $(document).ready(function () {
       me.start = me.end = undefined;
     });
   }
-  
+
   function map(origin) {
     var tx, ty;
     tx = COORD.x * (origin.x / paper._viewBox[2] - 1 / 2);
     ty = -COORD.y * (origin.y / paper._viewBox[3] - 1 / 2);
-    return {x: tx, y: ty};
+    return {
+      x: tx,
+      y: ty
+    };
   }
-  
+
   function inv(coord) {
     var ox, oy;
     ox = paper._viewBox[2] / COORD.x * (coord.x + COORD.x / 2);
     oy = -paper._viewBox[3] / COORD.y * (coord.y - COORD.y / 2);
-    return {x: ox, y: oy};
+    return {
+      x: ox,
+      y: oy
+    };
   }
-  
+
   var originalRaphaelImageFn = Raphael.fn.image;
   Raphael.fn.image = function (url, x, y, w, h) {
     if (!w || !h) {
