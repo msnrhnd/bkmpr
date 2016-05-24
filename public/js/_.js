@@ -65,7 +65,8 @@ $(document).ready(function () {
 
   $('#control-panel').hide();
   $('#sign-in').prop('disabled', true);
-
+  $('#plus').prop('disabled', true);
+  
   function signIn(roomId) {
     thisRoomId = roomId;
     $('#this-room').text(thisRoomId).fadeIn(DURATION);
@@ -331,8 +332,8 @@ $(document).ready(function () {
     else {
       socket.emit('getBook', thisRoomId, val);
     }
-    $('#search').val('');
     $(this).prop('disabled', true);
+    $('#search').val('');
   });
 
   function message(viewbox, mes, type) {
@@ -379,6 +380,9 @@ $(document).ready(function () {
   socket.on('go', function () {
     $('button').prop('disabled', false);
     $('input').prop('disabled', false);
+    if (!$('#search').val()) {
+      $('#plus').prop('disabled', true);
+    }
   });
 
   socket.on('sendCover', function (data) {

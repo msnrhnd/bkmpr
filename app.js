@@ -442,7 +442,7 @@ var socket = io.on('connection', function (client) {
           return row.id
         });
         if (existingIds.indexOf(id) >= 0) {
-          pg_client.query("SELECT state FROM state WHERE id=($1)", [id], function (err, result) {
+          pg_client.query("SELECT state FROM state WHERE id = $1", [id], function (err, result) {
             done();
             loadedState = result.rows[0].state;
             socket.emit('load', id, loadedState);
