@@ -93,15 +93,21 @@ $(document).ready(function () {
     socket.emit('load', getQueryString().load);
   }
   
-  function escapeText (text) {
-    return text.replace(/[^a-zA-Z0-9_\-]/g, '');
-  }
-  
   $(document).on('keyup', '#room', function () {
-    $('#room').val(escapeText($('#room').val()));
+    $('#room').val($('#room').val().replace(/[^a-zA-Z0-9_\-]/, ''));
     $('#sign-in').prop('disabled', !Boolean($('#room').val()));
   });
 
+  $(document).on('keyup', '#search', function(e) {
+    var escaped = $(e.currentTarget).val().replace(/[$="' (){}\.,\[\]]/, '');
+    $(e.currentTarget).val(escaped);
+    if (escaped) {
+      $('#search').siblings('#plus').prop('disabled', false);
+    } else {
+      $('#search').siblings('#plus').prop('disabled', true);
+    }
+  });
+  
   $('#sign-in').click(function () {
     if ($('#room').val()) {
       signIn($('#room').val());
@@ -174,7 +180,7 @@ $(document).ready(function () {
   });
 
   $(document).on('keyup', '#axis input', function (e) {
-    var escaped = $(e.currentTarget).val().replace(/["' (){}\.,\[\]]/g, '');
+    var escaped = $(e.currentTarget).val().replace(/[$="' (){}\.,\[\]]/, '');
     $(e.currentTarget).val(escaped);
     checkTextBoxes($(e.currentTarget));
   }).on('change', '#axis input', function (e) {
@@ -261,15 +267,16 @@ $(document).ready(function () {
   });
   
   $('#plus').click(function () {
-    if (activeCovers.hasOwnProperty(isbn)) {
+    var val = $('#search').val().replace(/-/, '');
+    if (activeCovers.hasOwnProperty(val)) {
       console.log('duplicated');
       message('Duplicated');
     }
     else {
-      var isbn = $('#search').val().replace(/-/g, '');
-      socket.emit('getBook', thisRoomId, isbn);
+      socket.emit('getBook', thisRoomId, val);
     }
     $('#search').val('');
+    $(this).prop('disabled', true);
   });
 
   function message(viewbox, mes, type) {

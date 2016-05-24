@@ -49,7 +49,7 @@ else {
 function trimTitle16(str) {
   var trimmed = str;
   if (str.length > 16) {
-    trimmed = str.slice(0, 16) + '…';
+    trimmed = str.slice(0, 15) + '…';
   }
   return trimmed;
 }
@@ -137,44 +137,73 @@ var socket = io.on('connection', function (client) {
     client.broadcast.emit('axis', dir, val);
   });
 
-  client.on('getBook', function (roomId, isbn) {
-    console.log('getBook', isbn);
-    Promise.resolve(isbn).then(function (isbn) {
-      return checkBook(isbn);
+  client.on('getBook', function (roomId, val) {
+    console.log('getBook', val);
+    Promise.resolve().then(function () {
+      return checkDB(val);
+    }).then(function (checked) {
+      if (checked.exists) {
+        return Promise.resolve(checked);
+      }
+      else if (checked.type == 'isbn') {
+        return Promise.resolve().then(function () {
+          return fetchBook(val);
+        }).then(function (item) {
+          return insertDB(item);
+        });
+      } else if (checked.type = 'title') {
+        return Promise.resolve().then(function() {
+          return setDummy(val);
+        });
+      }
     }).then(function (item) {
-      return item;
-    }, function (isbn) {
-      return fetchBook(isbn);
-    }).then(function (image) {
-      return checkImage(image);
-    }, function (error) {
-      setDummy(roomId, isbn);
+      if (fs.existsSync(path.join('tmp', val + '.jpg'))) {
+        return Promise.resolve(item);
+      } else {
+        return Promise.resolve().then(function () {
+          return saveTmpImage(item.isbn);
+        }).then(function() {
+          return Promise.resolve(item);
+        });
+      }
     }).then(function (item) {
-      return item;
-    }, function (item) {
-      return saveImage(item);
-    }).then(function (cover) {
-      return sendCover(roomId, getCoord(roomId, isbn), cover);
-    }).then(function (state) {
-      return saveState(roomId, getCoord(roomId, isbn), state);
+      return sendCover(roomId, getCoord(roomId, val), item);
+    }).then(function(state) {
+      saveState(roomId, state);
     });
   });
   
-  function checkBook(isbn) {
-    console.log('checkBook', isbn);
-    return new Promise(function (resolve, reject) {
+  function checkDB(val) {
+    console.log('checkDB', val);
+    return new Promise(function (resolve) {
+      var type, exists;
       pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
-        if (err) console.log(err);
-        pg_client.query('SELECT * FROM book where isbn = $1', [isbn], function(err, result) {
-          done();
-          if (result.rows.length) {
-            var item = result.rows[0];
-            item.isbn = isbn;
-            resolve(item);
-          } else {
-            reject(isbn);
-          };
-        });
+        if (val.match(/\d{13}/)) {
+          type = 'isbn';
+          pg_client.query('SELECT * FROM book WHERE isbn = $1', [val], function (err, result) {
+            done();
+            exists = result.rows.length ? true : false;
+            if (exists) {
+              var item = result.rows[0];
+              resolve({type: type, exists: exists, isbn: val, title: item.title, url: item.url});
+            } else {
+              resolve({type: type, exists: exists, isbn: val});
+            }
+          });
+        }
+        else {
+          type = 'title';
+          pg_client.query('SELECT * FROM book WHERE title = $1', [val], function (err, result) {
+            done();
+            exists = result.rows.length ? true : false;
+            if (exists) {
+              var item = result.rows[0];
+              resolve({type: type, exists: exists, isbn: item.isbn, title: item.title, url: item.url});
+            } else {
+              resolve({type: type, exists: exists, isbn: val});
+            }
+          });
+        }
       });
     });
   }
@@ -195,16 +224,10 @@ var socket = io.on('connection', function (client) {
           var response = JSON.parse(body);
           if (response.hasOwnProperty('Items') && response.Items.length) {
             var item = response.Items[0].Item;
-            pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
-              pg_client.query('INSERT INTO book (isbn, title, url) VALUES ($1 ,$2, $3)', [isbn, trimTitle16(item.title), item.mediumImageUrl] ,function(err, result) {
-                done();
-                console.log('book saved.');
-              });
-            });
             resolve({
+              isbn: item.isbn,
               title: trimTitle16(item.title),
-              url: item.mediumImageUrl,
-              isbn: isbn
+              url: item.mediumImageUrl
             });
           }
           else {
@@ -215,51 +238,68 @@ var socket = io.on('connection', function (client) {
     });
   }
 
-  function setDummy(roomId, isbn) {
-    var isbn = '00000000';
-    var coord = {x: 0, y: 0};
-    console.log('setDummy', isbn);
-    fs.readFile('public/images/dummy.png', function (err, buffer) {
-      var cover = {
-        buffer: buffer.toString('base64'),
-        title: isbn,
-        isbn: isbn,
-        coord: coord
-      };
-      saveState(roomId, coord, {isbn: isbn, title: isbn});
-      socket.to(roomId).emit('sendCover', cover);
+  function insertDB(item) {
+    console.log('insertDB', item);
+    return new Promise(function (resolve) {
+      pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
+        pg_client.query('INSERT INTO book (isbn, title, url) VALUES ($1, $2, $3)', [item.isbn, item.title, item.url], function (err, result) {
+          if (err) console.log(err);
+          done();
+          console.log('book saved in DB.');
+          resolve(item);
+        });
+      });
     });
   }
-
-  function checkImage(item) {
-    console.log('checkImage', item.isbn);
-    var imagePath = path.join('tmp', item.isbn + '.jpg');
+  
+  function setDummy(val) {
+    console.log('setDummy', val);
+    function fillZero(number, digits) {
+      var zeros = new Array(digits + 1).join('0');
+      return (zeros + number).slice(-digits);
+    }
     return new Promise(function (resolve, reject) {
-      if (fs.existsSync(imagePath)) {
-        resolve(item);
-      } else {
-        reject(item);
-      }
-    });
-  };
- 
-  function saveImage(item) {
-    console.log('saveImage', item.isbn);
-    var imagePath = path.join('tmp', item.isbn + '.jpg');
-    return new Promise(function (resolve, reject) {
-      http.get(item.url, function (res) {
-        var imageData = ''
-        res.setEncoding('binary');
-        res.on('data', function (chunk) {
-          imageData += chunk;
+      pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
+        var i = 0;
+        var isbn = fillZero(i, 13);
+        pg_client.query('SELECT isbn FROM book', function (err, result) {
+          done();
+          var existingIsbns = result.rows.map(function (row) {
+            return row.isbn;
+          });
+          while (existingIsbns.indexOf(isbn) >= 0) {
+            i = i + 1;
+            isbn = fillZero(i, 13);
+          }
+          pg_client.query('INSERT INTO book (isbn, title, url) VALUES ($1 ,$2, $3)', [isbn, val, undefined], function (err, result) {
+            done();
+            resolve({isbn: isbn, title: val, url: undefined});
+          });
         });
-        res.on('end', function () {
-          fs.writeFileSync(imagePath, imageData, 'binary');
-          var cover = {
-            title: item.title,
-            isbn: item.isbn
-          };
-          resolve(cover);
+      });
+    });
+  }
+ 
+  function saveTmpImage(isbn) {
+    console.log('saveTmpImage', isbn);
+    return new Promise(function (resolve, reject) {
+      pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
+        pg_client.query('SELECT * FROM book WHERE isbn = $1', [isbn], function (err, result) {
+          done();
+          var item = result.rows[0];
+          var url = item.url ? item.url : 'http://localhost:' + port + '/images/dummy.jpg';
+          console.log(url);
+          http.get(url, function (res) {
+            var imageData = ''
+            res.setEncoding('binary');
+            res.on('data', function (chunk) {
+              imageData += chunk;
+            });
+            res.on('end', function () {
+              fs.writeFileSync(path.join('tmp', item.isbn + '.jpg'), imageData, 'binary');
+              resolve(isbn);
+            });
+          });
         });
       });
     });
@@ -277,16 +317,16 @@ var socket = io.on('connection', function (client) {
     }
     return coord;
   }
-  
-  function sendCover(roomId, coord, image) {
-    console.log('sendCover', image.isbn);
-    var imagePath = path.join('tmp', image.isbn + '.jpg');
+
+  function sendCover(roomId, coord, item) {
+    console.log('sendCover', item.isbn);
+    var imagePath = path.join('tmp', item.isbn + '.jpg');
     return new Promise(function (resolve, reject) {
       fs.readFile(imagePath, function (err, buffer) {
         var cover = {
           buffer: buffer.toString('base64'),
-          title: image.title,
-          isbn: image.isbn,
+          title: item.title,
+          isbn: item.isbn,
           coord: coord
         };
         if (roomId) {
@@ -297,21 +337,22 @@ var socket = io.on('connection', function (client) {
         }
         var state = {
           isbn: cover.isbn,
-          title: cover.title
+          title: cover.title,
+          coord: coord
         };
         resolve(state);
       });
     });
   }
 
-  function saveState(roomId, coord, state) {
+  function saveState(roomId, state) {
     console.log('saveState', state.isbn);
     return new Promise(function (resolve, reject) {
       if (!activeStates[roomId].covers.hasOwnProperty(state.isbn)) {
         activeStates[roomId].covers[state.isbn] = {};
       }
       activeStates[roomId].covers[state.isbn].title = state.title;
-      activeStates[roomId].covers[state.isbn].coord = coord;
+      activeStates[roomId].covers[state.isbn].coord = state.coord;
       writeActiveState();
       resolve(true);
     });
@@ -350,7 +391,7 @@ var socket = io.on('connection', function (client) {
       pg_client.query('SELECT id FROM state', function (err, result) {
         done();
         var existingIds = result.rows.map(function (row) {
-          return row.id
+          return row.id;
         });
         while (existingIds.indexOf(id) >= 0) {
           id = genRandId(8);
