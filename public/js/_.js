@@ -2,6 +2,7 @@ $(document).ready(function () {
   var socket = io.connect(location.origin);
   var activeCovers = {};
   var thisRoomId;
+  var par = getQueryString();
   var paper = Raphael('main-panel');
   paper.setViewBox(0, 0, $(window).width(), $(window).height(), true);
   paper.setSize('100%', '100%');
@@ -45,14 +46,6 @@ $(document).ready(function () {
     }
   }
 
-  function setQueryString(par) {
-    var result = '';
-    $.each(par, function (k, v) {
-      result += k + '=' + v + '&';
-    });
-    return result.substr(0, result.length - 1);
-  }
-
   function modalPanel() {
     var w = $('#modal-panel').outerWidth();
     var h = $('#modal-panel').outerHeight();
@@ -66,7 +59,7 @@ $(document).ready(function () {
   $('#control-panel').hide();
   $('#sign-in').prop('disabled', true);
   $('#plus').prop('disabled', true);
-  
+
   function signIn(roomId) {
     thisRoomId = roomId;
     $('#this-room').text(thisRoomId).fadeIn(DURATION);
@@ -114,12 +107,14 @@ $(document).ready(function () {
     history.pushState('', '', '/');
   }
 
-  if (getQueryString().hasOwnProperty('room')) {
-    signIn(getQueryString().room);
+  if (par.hasOwnProperty('room')) {
+    signIn(par.room);
+    if (par.hasOwnProperty('load')) {
+      socket.emit('load', par.load);
+    }
   }
-
-  if (getQueryString().hasOwnProperty('load')) {
-    socket.emit('load', getQueryString().load);
+  else if (par.hasOwnProperty('load')) {
+    socket.emit('load', par.load);
   }
 
   $(document).on('keyup', '#room', function () {
@@ -293,34 +288,39 @@ $(document).ready(function () {
   socket.on('load', function (id, state) {
     var covers = state.covers;
     var axis = state.axis;
-    $('#this-room').text(id).fadeIn(DURATION);
-    $('').fadeIn(DURATION);
-    if (!$('#axis .' + id).length) {
-      $('#axis').append($('<div/>').addClass(id));
-      for (var dir of['e', 'w', 's', 'n']) {
-        $('#axis .' + id).append($('<input/>').attr({
-          type: 'text',
-          maxlength: '16'
-        }).addClass(dir).prop('disabled', true));
-        if (axis.hasOwnProperty(dir)) {
-          $('#axis .' + id + ' .' + dir).val(axis[dir]);
-        }
-        checkTextBoxes($('#axis .' + id + ' .' + dir));
-      }
+    if (thisRoomId) {
+      console.log('load');
     }
-    cssTextBoxes(pw);
-    $('#axis .' + id + ' input').fadeIn(DURATION);
-    VERT.animate({
-      opacity: 1
-    }, DURATION);
-    HORZ.animate({
-      opacity: 1
-    }, DURATION);
-    $('#modal-panel').fadeOut(DURATION);
-    checkTextBoxes($('#axis .' + id + ' input'));
+    else {
+      $('#this-room').text(id).fadeIn(DURATION);
+      $('').fadeIn(DURATION);
+      if (!$('#axis .' + id).length) {
+        $('#axis').append($('<div/>').addClass(id));
+        for (var dir of['e', 'w', 's', 'n']) {
+          $('#axis .' + id).append($('<input/>').attr({
+            type: 'text',
+            maxlength: '16'
+          }).addClass(dir).prop('disabled', true));
+          if (axis.hasOwnProperty(dir)) {
+            $('#axis .' + id + ' .' + dir).val(axis[dir]);
+          }
+          checkTextBoxes($('#axis .' + id + ' .' + dir));
+        }
+      }
+      cssTextBoxes(pw);
+      $('#axis .' + id + ' input').fadeIn(DURATION);
+      VERT.animate({
+        opacity: 1
+      }, DURATION);
+      HORZ.animate({
+        opacity: 1
+      }, DURATION);
+      $('#modal-panel').fadeOut(DURATION);
+      checkTextBoxes($('#axis .' + id + ' input'));
+    }
     $.each(covers, function (isbn) {
-      socket.emit('getBook', null, isbn);
-    })
+      socket.emit('getBook', thisRoomId, isbn);
+    });
   });
 
   $('#plus').click(function () {
