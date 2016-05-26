@@ -165,16 +165,18 @@ $(document).ready(function () {
   });
 
   socket.on('appendRoom', function (roomId) {
+    console.log('appendRoom', roomId);
     var existingRoom = $.map($('.enter-room'), function (elem) {
       return $(elem).text();
     });
     if (existingRoom.indexOf(roomId) < 0) {
       var $btnGroup = $('<div/>').addClass('btn-group ' + roomId).append($('<label/>').addClass('btn btn-default btn-sm enter-room').html(roomId)).append($('<label/>').addClass('btn btn-default btn-sm remove-room').html('&times;')).after(' ');
-      $('#existing-rooms').append($btnGroup);
+    $('#existing-rooms').append($btnGroup);
     }
   });
 
   socket.on('removeRoom', function (roomId) {
+    console.log('removeRoom', roomId);
     $('.btn-group.' + roomId).hide(DURATION, function () {
       this.remove();
     });
@@ -288,10 +290,7 @@ $(document).ready(function () {
   socket.on('load', function (id, state) {
     var covers = state.covers;
     var axis = state.axis;
-    if (thisRoomId) {
-      console.log('load');
-    }
-    else {
+    if (!thisRoomId) {
       $('#this-room').text(id).fadeIn(DURATION);
       $('').fadeIn(DURATION);
       if (!$('#axis .' + id).length) {

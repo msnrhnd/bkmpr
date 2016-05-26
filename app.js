@@ -31,11 +31,13 @@ app.configure('development', function () {
 app.get('/', routes.index);
 
 var ROOM_MAX = 6;
+var COVER_MAX = 32;
 var RAKUTEN_URL = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20130522?';
 var activeStates = {};
 var loadedState;
 
 function writeActiveState() {
+  console.log('writeActiveState');
   fs.writeFileSync('tmp/activeStates.json', JSON.stringify(activeStates));
 }
 
@@ -66,14 +68,12 @@ var socket = io.on('connection', function (client) {
   if (client.conn.server.clientsCount > 2) {
     client.emit('restrict', true);
   }
-  var existingRooms = [];
   for (var roomId in activeStates) {
     client.emit('appendRoom', roomId);
     client.broadcast.emit('appendRoom', roomId);
-    existingRooms.push(roomId);
   }
-  client.emit('vacancy', (existingRooms.length < ROOM_MAX));
-  client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
+  client.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
+  client.broadcast.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
   client.on('signIn', function (roomId) {
     console.log('sign in ' + roomId);
     client.room = roomId;
@@ -86,34 +86,26 @@ var socket = io.on('connection', function (client) {
         covers: {},
         axis: {}
       };
-      writeActiveState();
-    }
-    if (existingRooms.indexOf(roomId) < 0) {
-      existingRooms.push(roomId);
       client.emit('appendRoom', roomId);
       client.broadcast.emit('appendRoom', roomId);
-      client.emit('vacancy', (existingRooms.length < ROOM_MAX));
-      client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
+      client.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
+      client.broadcast.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
+      writeActiveState();
     }
   });
 
   client.on('signOut', function (roomId) {
-    client.emit('vacancy', (existingRooms.length < ROOM_MAX));
-    client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
+    client.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
+    client.broadcast.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
     client.leave(roomId);
   });
 
   client.on('removeRoom', function (roomId) {
-    if (existingRooms.indexOf(roomId) >= 0) {
-      existingRooms.splice(existingRooms.indexOf(roomId), 1);
-    }
-    client.emit('vacancy', (existingRooms.length < ROOM_MAX));
-    client.broadcast.emit('vacancy', (existingRooms.length < ROOM_MAX));
-    client.emit('removeRoom', roomId);
-    client.broadcast.emit('removeRoom', roomId);
     if (activeStates.hasOwnProperty(roomId)) {
       delete activeStates[roomId];
       writeActiveState();
+      client.emit('removeRoom', roomId);
+      client.broadcast.emit('removeRoom', roomId);
     }
   });
 
@@ -173,6 +165,15 @@ var socket = io.on('connection', function (client) {
     });
   });
 
+  function checkQuantity(roomId) {
+    console.log('checkQuantity', roomId);
+    if (Object.keys(activeStates[roomId].covers).length < COVER_MAX) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+  
   function checkDB(val) {
     console.log('checkDB', val);
     return new Promise(function (resolve) {
@@ -343,7 +344,7 @@ var socket = io.on('connection', function (client) {
         coord = activeStates[roomId].covers[isbn].coord;
       }
     }
-    else {
+    if (loadedState && loadedState.covers.hasOwnProperty(isbn)) {
       coord = loadedState.covers[isbn].coord;
     }
     return coord;
@@ -406,6 +407,7 @@ var socket = io.on('connection', function (client) {
   });
 
   client.on('placeCover', function (roomId, data) {
+    console.log('placeCover', data.isbn);
     if (activeStates[roomId].covers.hasOwnProperty(data.isbn)) {
       activeStates[roomId].covers[data.isbn].coord = trimCoord({
         x: data.x,
