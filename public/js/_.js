@@ -64,6 +64,7 @@ $(document).ready(function () {
   $(document).on('click', '#load-send', function() {
     socket.emit('load', $('#load-id').val());
     $('#modal-panel').fadeOut(DURATION);
+    $('#load-id').val('');
   });
   
   function signIn(roomId) {
