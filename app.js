@@ -342,9 +342,11 @@ var socket = io.on('connection', function (client) {
     if (roomId) {
       if (activeStates[roomId].covers.hasOwnProperty(isbn)) {
         coord = activeStates[roomId].covers[isbn].coord;
+      } else if (loadedState && loadedState.covers.hasOwnProperty(isbn)) {
+        coord = loadedState.covers[isbn].coord;
       }
     }
-    if (loadedState && loadedState.covers.hasOwnProperty(isbn)) {
+    else if (loadedState && loadedState.covers.hasOwnProperty(isbn)) {
       coord = loadedState.covers[isbn].coord;
     }
     return coord;
@@ -437,6 +439,7 @@ var socket = io.on('connection', function (client) {
   });
 
   client.on('load', function (id) {
+    console.log('load', id);
     pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
       pg_client.query('SELECT id FROM state', function (err, result) {
         done();

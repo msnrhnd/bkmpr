@@ -6,22 +6,34 @@
 <div id="this-room"></div>
 <div id="control-panel">
   <div class="form-inline">
-    <input id="search" type="text" class="form-control" value="" placeholder="ISBN13" maxlength="32"><button id="plus" class="btn btn-default"><i class="fa fa-plus"></i></button><button id="save" class="btn btn-default"><i class="fa fa-save"></i></button><button id="sign-out" class="btn btn-default"><i class="fa fa-sign-out"></i></button>
+    <input id="search" type="text" class="form-control" value="" placeholder="ISBN13" maxlength="32"><button id="plus" class="btn btn-default"><i class="fa fa-plus"></i></button><button id="save" class="btn btn-default"><i class="fa fa-toggle-down"></i></button><button id="load" class="btn btn-default"><i class="fa fa-toggle-up"></i></button><button id="sign-out" class="btn btn-default"><i class="fa fa-sign-out"></i></button>
   </div>
 </div>
 <div id="modal-panel">
-  <div class="create-room">
-    <p>Create new room</p>
-    <div class="room-form">
-      <div class="form-inline">
-        <input id="room" type="text" value="" class="form-control" maxlength="16"><button id="sign-in" class="btn btn-default"><i class="fa fa-sign-in"></i></button>
-      </div>
-    </div><!-- room-form -->
-  </div><!-- create-room -->
-  <div>
-    <p>Enter into an existing room</p>
-    <div id="existing-rooms"></div>
+  <div class="close">&times;</div>
+  <div id="init-panel">
+    <div class="create-room">
+      <p>Create new room</p>
+        <div class="room-form">
+        <div class="form-inline">
+          <input id="room" type="text" value="" class="form-control" maxlength="16"><button id="sign-in" class="btn btn-default"><i class="fa fa-sign-in"></i></button>
+        </div>
+      </div><!-- room-form -->
+    </div><!-- create-room -->
+    <div>
+      <p>Enter into an existing room</p>
+      <div id="existing-rooms"></div>
+    </div>
+  </div><!-- #init-panel -->
+  <div id="save-panel">
+  <p>This state saved in</p>
+  <div id="saved-url"></div>
+  </div><!-- #save -->
+  <div id="load-panel">
+  <p>Load state from</p>
+  <div class="form-inline">
+  <input id="load-id" type="text" value="" class="form-control" maxlength="16"><button id="load-send" class="btn btn-default"><i class="fa fa-sign-in"></i></button>
+  </div><!-- #load-panel -->
   </div>
 </div><!-- modal-panel -->
-<div id="saved"></div>
 <footer>BKMPR &copy; 2016 msnrhnd</footer>
