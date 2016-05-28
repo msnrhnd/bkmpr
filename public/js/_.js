@@ -58,8 +58,14 @@ $(document).ready(function () {
 
   $('#control-panel').hide();
   $('#sign-in').prop('disabled', true);
+  $('#load-send').prop('disabled', true);
   $('#plus').prop('disabled', true);
 
+  $(document).on('click', '#load-send', function() {
+    socket.emit('load', $('#load-id').val());
+    $('#modal-panel').fadeOut(DURATION);
+  });
+  
   function signIn(roomId) {
     thisRoomId = roomId;
     $('#this-room').text(thisRoomId).fadeIn(DURATION);
@@ -103,6 +109,10 @@ $(document).ready(function () {
       opacity: 0
     }, DURATION);
     $('#modal-panel').fadeIn(DURATION);
+    $('#modal-panel #init-panel').fadeIn(DURATION, function() {
+      $(this).siblings().hide();
+    });
+    $('.close').hide();
     thisRoomId = undefined;
     history.pushState('', '', '/');
   }
@@ -117,20 +127,16 @@ $(document).ready(function () {
     socket.emit('load', par.load);
   }
 
-  $(document).on('keyup', '#room', function () {
-    $('#room').val($('#room').val().replace(/[^a-zA-Z0-9_\-]/, ''));
-    $('#sign-in').prop('disabled', !Boolean($('#room').val()));
+  $(document).on('keyup', '#room, #load-id', function (e) {
+    var escaped = $(e.currentTarget).val().replace(/[^a-zA-Z0-9_\-]/, '');
+    $(e.currentTarget).val(escaped);
+    $(e.currentTarget).next('button').prop('disabled', !Boolean(escaped));
   });
 
   $(document).on('keyup', '#search', function (e) {
     var escaped = $(e.currentTarget).val().replace(/[$="' (){}\.,\[\]]/, '');
     $(e.currentTarget).val(escaped);
-    if (escaped) {
-      $('#search').siblings('#plus').prop('disabled', false);
-    }
-    else {
-      $('#search').siblings('#plus').prop('disabled', true);
-    }
+    $(e.currentTarget).next('button').prop('disabled', !Boolean(escaped));
   });
 
   $('#sign-in').click(function () {
@@ -214,6 +220,12 @@ $(document).ready(function () {
     });
   }
 
+  $(window).resize(function () {
+    pw = $(window).width() / WIDTH;
+    modalPanel();
+    cssTextBoxes(pw);
+  });
+
   function checkTextBoxes($input) {
     if ($input.val()) {
       $input.css('border', 'none');
@@ -222,12 +234,6 @@ $(document).ready(function () {
       $input.css('border-bottom', '1px solid black');
     }
   }
-
-  $(window).resize(function () {
-    pw = $(window).width() / WIDTH;
-    modalPanel();
-    cssTextBoxes(pw);
-  });
 
   $(document).on('keyup', '#axis input', function (e) {
     var escaped = $(e.currentTarget).val().replace(/[$="' (){}\.,\[\]]/, '');
@@ -283,10 +289,26 @@ $(document).ready(function () {
     socket.emit('save', thisRoomId);
   });
 
+  $('#load').click(function () {
+    $('#modal-panel').fadeIn(DURATION);
+    $('#init-panel, #save-panel').hide();
+    $('#load-panel').fadeIn(DURATION);
+    $('.close').show();
+  });
+  
   socket.on('save', function (id) {
-    console.log(id);
+    $('#modal-panel').fadeIn(DURATION);
+    $('#init-panel, #load-panel').hide();
+    $('#save-panel').fadeIn(DURATION, function() {
+      $('.close').show();
+      $('#saved-url').text(location.host + '/?load=' + id);
+    });
   });
 
+  $(document).on('click', '.close', function(e) {
+    $('#modal-panel').fadeOut(DURATION);
+  });
+  
   socket.on('load', function (id, state) {
     var covers = state.covers;
     var axis = state.axis;
@@ -295,7 +317,7 @@ $(document).ready(function () {
       $('').fadeIn(DURATION);
       if (!$('#axis .' + id).length) {
         $('#axis').append($('<div/>').addClass(id));
-        for (var dir of['e', 'w', 's', 'n']) {
+        for (var dir of ['e', 'w', 's', 'n']) {
           $('#axis .' + id).append($('<input/>').attr({
             type: 'text',
             maxlength: '16'
@@ -315,7 +337,6 @@ $(document).ready(function () {
         opacity: 1
       }, DURATION);
       $('#modal-panel').fadeOut(DURATION);
-      checkTextBoxes($('#axis .' + id + ' input'));
     }
     $.each(covers, function (isbn) {
       socket.emit('getBook', thisRoomId, isbn);
@@ -346,10 +367,6 @@ $(document).ready(function () {
     });
     return false;
   }
-
-/*  socket.on('restrict', function () {
-    signOut(thisRoomId);
-  }); */
 
   socket.on('signIn', function (activeStates_roomId) {
     var isbns = Object.keys(activeStates_roomId.covers);

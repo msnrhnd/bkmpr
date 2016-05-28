@@ -74,21 +74,35 @@ message { }
   border: 2px solid #aaa;
   background: #fff;
   z-index: 2;
+  text-align: center;
+  .close {
+    position: absolute;
+    top: .4em;
+    right: .8em;
+    display: none;
+  }
   p {
     text-align: center;
   }
-  .create-room {
-    margin-bottom: 1.4em;
-    .room-form {
-      position: relative;
-      text-align: center;
-      margin: 0 auto;
-      #room {
+  input {
+    text-align: center;
+    position: relative;
+    width: 60%;
+    margin: 0 auto;
+  }
+  #init-panel {
+    .create-room {
+      margin-bottom: 1.4em;
+      .room-form {
         position: relative;
-        width: 60%;
-        text-align: center;
         margin: 0 auto;
       }
     }
+  }
+  #save-panel {
+    display: none;
+  }
+  #load-panel {
+    display: none;
   }
 }

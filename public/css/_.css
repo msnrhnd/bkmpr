@@ -8925,25 +8925,40 @@ input.w {
   border: 2px solid #aaa;
   background: #fff;
   z-index: 2;
+  text-align: center;
 }
-/* line 77, ../sass/_.scss */
+/* line 78, ../sass/_.scss */
+#modal-panel .close {
+  position: absolute;
+  top: .4em;
+  right: .8em;
+  display: none;
+}
+/* line 84, ../sass/_.scss */
 #modal-panel p {
   text-align: center;
 }
-/* line 80, ../sass/_.scss */
-#modal-panel .create-room {
-  margin-bottom: 1.4em;
-}
-/* line 82, ../sass/_.scss */
-#modal-panel .create-room .room-form {
-  position: relative;
+/* line 87, ../sass/_.scss */
+#modal-panel input {
   text-align: center;
-  margin: 0 auto;
-}
-/* line 86, ../sass/_.scss */
-#modal-panel .create-room .room-form #room {
   position: relative;
   width: 60%;
-  text-align: center;
   margin: 0 auto;
+}
+/* line 94, ../sass/_.scss */
+#modal-panel #init-panel .create-room {
+  margin-bottom: 1.4em;
+}
+/* line 96, ../sass/_.scss */
+#modal-panel #init-panel .create-room .room-form {
+  position: relative;
+  margin: 0 auto;
+}
+/* line 102, ../sass/_.scss */
+#modal-panel #save-panel {
+  display: none;
+}
+/* line 105, ../sass/_.scss */
+#modal-panel #load-panel {
+  display: none;
 }
