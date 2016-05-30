@@ -191,7 +191,8 @@ var socket = io.on('connection', function (client) {
                 exists: exists,
                 isbn: val,
                 title: item.title,
-                url: item.url
+                url: item.url,
+                link: item.link
               });
             }
             else {
@@ -215,7 +216,8 @@ var socket = io.on('connection', function (client) {
                 exists: exists,
                 isbn: item.isbn,
                 title: item.title,
-                url: item.url
+                url: item.url,
+                link: item.link
               });
             }
             else {
@@ -236,7 +238,8 @@ var socket = io.on('connection', function (client) {
     return new Promise(function (resolve, reject) {
       var par = {
         'applicationId': process.env.RAKUTEN_APP_ID,
-        'isbnjan': isbn
+        'isbnjan': isbn,
+        'outOfStockFlag': 1
       }
       https.get(RAKUTEN_URL + querystring.stringify(par), function (res) {
         var body = '';
@@ -245,12 +248,14 @@ var socket = io.on('connection', function (client) {
         });
         res.on('end', function () {
           var response = JSON.parse(body);
+          console.log(response);
           if (response.hasOwnProperty('Items') && response.Items.length) {
             var item = response.Items[0].Item;
             resolve({
               isbn: item.isbn,
               title: trimTitle16(item.title),
-              url: item.mediumImageUrl
+              url: item.mediumImageUrl,
+              link: item.itemUrl
             });
           }
           else {
@@ -265,7 +270,7 @@ var socket = io.on('connection', function (client) {
     console.log('insertDB', item);
     return new Promise(function (resolve) {
       pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
-        pg_client.query('INSERT INTO book (isbn, title, url) VALUES ($1, $2, $3)', [item.isbn, item.title, item.url], function (err, result) {
+        pg_client.query('INSERT INTO book (isbn, title, url, link) VALUES ($1, $2, $3, $4)', [item.isbn, item.title, item.url, item.link], function (err, result) {
           if (err) console.log(err);
           done();
           console.log('book saved in DB.');
@@ -295,12 +300,13 @@ var socket = io.on('connection', function (client) {
             i = i + 1;
             isbn = fillZero(i, 13);
           }
-          pg_client.query('INSERT INTO book (isbn, title, url) VALUES ($1 ,$2, $3)', [isbn, val, undefined], function (err, result) {
+          pg_client.query('INSERT INTO book (isbn, title, url, link) VALUES ($1 ,$2, $3)', [isbn, val, undefined, undefined], function (err, result) {
             done();
             resolve({
               isbn: isbn,
               title: val,
-              url: undefined
+              url: undefined,
+              link: undefined
             });
           });
         });
@@ -354,6 +360,7 @@ var socket = io.on('connection', function (client) {
 
   function sendCover(roomId, coord, item) {
     console.log('sendCover', item.isbn);
+    console.log('sendCover', item.link);
     var imagePath = path.join('tmp', item.isbn + '.jpg');
     return new Promise(function (resolve, reject) {
       fs.readFile(imagePath, function (err, buffer) {
@@ -361,7 +368,8 @@ var socket = io.on('connection', function (client) {
           buffer: buffer.toString('base64'),
           title: item.title,
           isbn: item.isbn,
-          coord: coord
+          coord: coord,
+          link: item.link
         };
         if (roomId) {
           socket.to(roomId).emit('sendCover', cover);

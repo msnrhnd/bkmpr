@@ -245,7 +245,7 @@ $(document).ready(function () {
     checkTextBoxes($(e.currentTarget));
   });
 
-  Raphael.fn.setCover = function (src, title, isbn, coord, handle) {
+  Raphael.fn.setCover = function (src, title, isbn, coord, link, handle) {
     function trimTitle16(str) {
       var trimmed = str;
       if (trimmed.length > 16) {
@@ -261,6 +261,7 @@ $(document).ready(function () {
     var cover = me.set();
     cover.isbn = isbn;
     cover.coord = coord;
+    cover.link = link;
     var img = new Image();
     img.src = src;
     img.onload = function () {
@@ -280,6 +281,8 @@ $(document).ready(function () {
       });
       if (handle) {
         cover.setMouseHandlers();
+      } else {
+        cover.setLink();
       }
       cover.transform('t' + inv(coord).x + ',' + inv(coord).y);
     }
@@ -406,7 +409,7 @@ $(document).ready(function () {
     var handle = thisRoomId ? true : false;
     if (!activeCovers.hasOwnProperty(data.isbn)) {
       var src = 'data:image/jpeg;base64,' + data.buffer;
-      var new_cover = paper.setCover(src, data.title, data.isbn, data.coord, handle);
+      var new_cover = paper.setCover(src, data.title, data.isbn, data.coord, data.link, handle);
       activeCovers[data.isbn] = new_cover;
     }
   });
@@ -483,6 +486,13 @@ $(document).ready(function () {
     });
   }
 
+  Raphael.st.setLink = function () {
+    var me = this
+    this.mouseup(function () {
+      window.open(me.link);
+    });
+  }
+  
   function map(origin) {
     var tx, ty;
     tx = COORD.x * (origin.x / paper._viewBox[2] - 1 / 2);
