@@ -360,7 +360,6 @@ var socket = io.on('connection', function (client) {
 
   function sendCover(roomId, coord, item) {
     console.log('sendCover', item.isbn);
-    console.log('sendCover', item.link);
     var imagePath = path.join('tmp', item.isbn + '.jpg');
     return new Promise(function (resolve, reject) {
       fs.readFile(imagePath, function (err, buffer) {
