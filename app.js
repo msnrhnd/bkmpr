@@ -63,73 +63,65 @@ function trimCoord(coord) {
   return coord;
 }
 
-var socket = io.on('connection', function (client) {
+io.on('connection', function (socket) {
   console.log('connected');
-  if (client.conn.server.clientsCount > 2) {
-    client.emit('restrict', true);
-  }
   for (var roomId in activeStates) {
-    client.emit('appendRoom', roomId);
-    client.broadcast.emit('appendRoom', roomId);
+    socket.emit('appendRoom', roomId);
   }
-  client.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
-  client.broadcast.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
-  client.on('signIn', function (roomId) {
+  socket.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
+  socket.on('signIn', function (roomId) {
     console.log('sign in ' + roomId);
-    client.room = roomId;
-    client.join(roomId);
+    socket.room = roomId;
+    socket.join(roomId);
     if (activeStates.hasOwnProperty(roomId)) {
-      client.emit('signIn', activeStates[roomId]);
+      socket.emit('signIn', activeStates[roomId]);
     }
     else {
       activeStates[roomId] = {
         covers: {},
         axis: {}
       };
-      client.emit('appendRoom', roomId);
-      client.broadcast.emit('appendRoom', roomId);
-      client.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
-      client.broadcast.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
+      socket.emit('appendRoom', roomId);
+      socket.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
       writeActiveState();
     }
   });
 
-  client.on('signOut', function (roomId) {
-    client.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
-    client.broadcast.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
-    client.leave(roomId);
+  socket.on('signOut', function (roomId) {
+    socket.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
+    socket.leave(roomId);
   });
 
-  client.on('removeRoom', function (roomId) {
+  socket.on('removeRoom', function (roomId) {
     if (activeStates.hasOwnProperty(roomId)) {
       delete activeStates[roomId];
       writeActiveState();
-      client.emit('removeRoom', roomId);
-      client.broadcast.emit('removeRoom', roomId);
+      socket.emit('removeRoom', roomId);
+      socket.to(roomId).emit('removeRoom', roomId);
     }
   });
 
-  client.on('disconnect', function () {
+  socket.on('disconnect', function () {
     console.log('disconnected');
-    client.leave(roomId);
+    socket.leave(roomId);
   });
 
-  client.on('wait', function (roomId) {
+  socket.on('wait', function (roomId) {
     socket.to(roomId).emit('wait');
   })
 
-  client.on('go', function (roomId) {
+  socket.on('go', function (roomId) {
     socket.to(roomId).emit('go');
   })
 
-  client.on('axis', function (roomId, dir, val) {
+  socket.on('axis', function (roomId, dir, val) {
     activeStates[roomId].axis[dir] = val;
     writeActiveState();
-    client.emit('axis', roomId, dir, val);
-    client.broadcast.emit('axis', roomId, dir, val);
+    socket.emit('axis', roomId, dir, val);
+    socket.to(roomId).emit('axis', roomId, dir, val);
   });
 
-  client.on('getBook', function (roomId, val) {
+  socket.on('getBook', function (roomId, val) {
     console.log('getBook', val);
     Promise.resolve().then(function () {
       return checkDB(val);
@@ -371,6 +363,7 @@ var socket = io.on('connection', function (client) {
           link: item.link
         };
         if (roomId) {
+          socket.emit('sendCover', cover);
           socket.to(roomId).emit('sendCover', cover);
         }
         else {
@@ -403,19 +396,21 @@ var socket = io.on('connection', function (client) {
     socket.emit('message', mes);
   }
 
-  client.on('removeCover', function (roomId, isbn) {
+  socket.on('removeCover', function (roomId, isbn) {
     if (activeStates[roomId].covers.hasOwnProperty(isbn)) {
       delete activeStates[roomId].covers[isbn];
     }
+    socket.emit('removeCover', isbn);
     socket.to(roomId).emit('removeCover', isbn);
     writeActiveState();
   });
 
-  client.on('moveCover', function (roomId, data) {
+  socket.on('moveCover', function (roomId, data) {
+    socket.emit('moveCover', data);
     socket.to(roomId).emit('moveCover', data);
   });
 
-  client.on('placeCover', function (roomId, data) {
+  socket.on('placeCover', function (roomId, data) {
     console.log('placeCover', data.isbn);
     if (activeStates[roomId].covers.hasOwnProperty(data.isbn)) {
       activeStates[roomId].covers[data.isbn].coord = trimCoord({
@@ -423,11 +418,12 @@ var socket = io.on('connection', function (client) {
         y: data.y
       });
       writeActiveState();
+      socket.emit('placeCover', data);
       socket.to(roomId).emit('placeCover', data);
     }
   });
 
-  client.on('save', function (roomId) {
+  socket.on('save', function (roomId) {
     pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
       var id = genRandId(8);
       pg_client.query('SELECT id FROM state', function (err, result) {
@@ -439,13 +435,13 @@ var socket = io.on('connection', function (client) {
           id = genRandId(8);
         }
         pg_client.query('INSERT INTO state (id, state) VALUES ($1 ,$2)', [id, JSON.stringify(activeStates[roomId])]);
+        socket.emit('save', id);
         done();
-        client.emit('save', id);
       });
     });
   });
 
-  client.on('load', function (id) {
+  socket.on('load', function (id) {
     console.log('load', id);
     pg.connect(process.env.DATABASE_URL + '?ssl=true', function (err, pg_client, done) {
       pg_client.query('SELECT id FROM state', function (err, result) {
