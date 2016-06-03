@@ -82,7 +82,9 @@ io.on('connection', function (socket) {
         axis: {}
       };
       socket.emit('appendRoom', roomId);
+      socket.broadcast.emit('appendRoom', roomId);
       socket.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
+      socket.broadcast.emit('vacancy', (Object.keys(activeStates).length < ROOM_MAX));
       writeActiveState();
     }
   });
@@ -97,7 +99,9 @@ io.on('connection', function (socket) {
       delete activeStates[roomId];
       writeActiveState();
       socket.emit('removeRoom', roomId);
-      socket.to(roomId).emit('removeRoom', roomId);
+      socket.broadcast.emit('removeRoom', roomId);
+      socket.emit('removeRoom', roomId);
+      socket.broadcast.emit('removeRoom', roomId);
     }
   });
 
