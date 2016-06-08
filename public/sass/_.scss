@@ -46,17 +46,14 @@ input {
   }
 }
 
-message { }
-
 #control-panel {
-  $search-form-width: 154px;
   @include fontsize(22);
   position: fixed;
   top: 0;
   left: 0;
   input {
     position: relative;
-    width: $search-form-width;
+    width: 154px;
   }
 }
 
@@ -104,5 +101,14 @@ message { }
   }
   #load-panel {
     display: none;
+  }
+}
+
+@media only screen and (max-width : 640px) {
+  #control-panel {
+    input {
+      position: relative;
+      width: 90%;
+    }
   }
 }

@@ -8895,7 +8895,7 @@ input.w {
   text-align: left;
 }
 
-/* line 51, ../sass/_.scss */
+/* line 49, ../sass/_.scss */
 #control-panel {
   font-size: 22px;
   font-size: 1.375rem;
@@ -8903,20 +8903,20 @@ input.w {
   top: 0;
   left: 0;
 }
-/* line 57, ../sass/_.scss */
+/* line 54, ../sass/_.scss */
 #control-panel input {
   position: relative;
   width: 154px;
 }
 
-/* line 63, ../sass/_.scss */
+/* line 60, ../sass/_.scss */
 #this-room {
   position: fixed;
   top: 0;
   right: 0;
 }
 
-/* line 69, ../sass/_.scss */
+/* line 66, ../sass/_.scss */
 #modal-panel {
   position: fixed;
   width: 48%;
@@ -8927,38 +8927,46 @@ input.w {
   z-index: 2;
   text-align: center;
 }
-/* line 78, ../sass/_.scss */
+/* line 75, ../sass/_.scss */
 #modal-panel .close {
   position: absolute;
   top: .4em;
   right: .8em;
   display: none;
 }
-/* line 84, ../sass/_.scss */
+/* line 81, ../sass/_.scss */
 #modal-panel p {
   text-align: center;
 }
-/* line 87, ../sass/_.scss */
+/* line 84, ../sass/_.scss */
 #modal-panel input {
   text-align: center;
   position: relative;
   width: 60%;
   margin: 0 auto;
 }
-/* line 94, ../sass/_.scss */
+/* line 91, ../sass/_.scss */
 #modal-panel #init-panel .create-room {
   margin-bottom: 1.4em;
 }
-/* line 96, ../sass/_.scss */
+/* line 93, ../sass/_.scss */
 #modal-panel #init-panel .create-room .room-form {
   position: relative;
   margin: 0 auto;
 }
-/* line 102, ../sass/_.scss */
+/* line 99, ../sass/_.scss */
 #modal-panel #save-panel {
   display: none;
 }
-/* line 105, ../sass/_.scss */
+/* line 102, ../sass/_.scss */
 #modal-panel #load-panel {
   display: none;
+}
+
+@media only screen and (max-width: 640px) {
+  /* line 109, ../sass/_.scss */
+  #control-panel input {
+    position: relative;
+    width: 90%;
+  }
 }
