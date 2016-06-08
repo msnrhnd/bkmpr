@@ -8969,4 +8969,13 @@ input.w {
     position: relative;
     width: 90%;
   }
+
+  /* line 114, ../sass/_.scss */
+  #modal-panel {
+    width: 100%;
+  }
+  /* line 116, ../sass/_.scss */
+  #modal-panel input {
+    width: 90%;
+  }
 }
