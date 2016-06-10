@@ -6,10 +6,7 @@ $(document).ready(function () {
   var paper = Raphael('main-panel');
   paper.setViewBox(0, 0, $(window).width(), $(window).height(), true);
   paper.setSize('100%', '100%');
-  var COORD = {
-    x: 256,
-    y: 256
-  };
+  var COORD = {x: 256, y: 256};
   var WIDTH = paper._viewBox[2];
   var HEIGHT = paper._viewBox[3];
   var UNIT = Math.sqrt(WIDTH * HEIGHT);
@@ -27,6 +24,7 @@ $(document).ready(function () {
   });
   var DURATION = 200;
   var pw = 1;
+  var MAX_COVERS = 48;
 
   function getQueryString() {
     if (location.search.length > 1) {
@@ -56,6 +54,16 @@ $(document).ready(function () {
   }
   modalPanel();
 
+  function checkCovers() {
+    var images = $('image').length;
+    if (images >= MAX_COVERS) {
+      $('#plus').attr('disabled', true);
+    } else {
+      $('#plus').attr('disabled', false);
+    }
+  }
+  checkCovers();
+  
   $('#control-panel').hide();
   $('#sign-in').prop('disabled', true);
   $('#load-send').prop('disabled', true);
@@ -138,6 +146,7 @@ $(document).ready(function () {
     var escaped = $(e.currentTarget).val().replace(/[$="' (){}\.,\[\]]/, '');
     $(e.currentTarget).val(escaped);
     $(e.currentTarget).next('button').prop('disabled', !Boolean(escaped));
+    checkCovers();
   });
 
   $('#sign-in').click(function () {
@@ -418,6 +427,9 @@ $(document).ready(function () {
     if (activeCovers.hasOwnProperty(isbn)) {
       activeCovers[isbn].remove();
       delete activeCovers[isbn];
+      if ($('#search').val()) {
+        checkCovers();
+      }
     }
   });
 
