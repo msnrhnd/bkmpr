@@ -317,8 +317,7 @@ io.on('connection', function (socket) {
         pg_client.query('SELECT * FROM book WHERE isbn = $1', [isbn], function (err, result) {
           done();
           var item = result.rows[0];
-          var url = item.url ? item.url : 'http://localhost:' + port + '/images/dummy.jpg';
-          console.log(url);
+          var url = item ? item.url : 'http://localhost:' + port + '/images/dummy.jpg';
           http.get(url, function (res) {
             var imageData = ''
             res.setEncoding('binary');
@@ -326,7 +325,7 @@ io.on('connection', function (socket) {
               imageData += chunk;
             });
             res.on('end', function () {
-              fs.writeFileSync(path.join('tmp', item.isbn + '.jpg'), imageData, 'binary');
+              fs.writeFileSync(path.join('tmp', isbn + '.jpg'), imageData, 'binary');
               resolve(isbn);
             });
           });
